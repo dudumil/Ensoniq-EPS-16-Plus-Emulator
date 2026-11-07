@@ -1,0 +1,90 @@
+#include "native_menu.h"
+
+#if defined(_WIN32)
+#include <SDL_syswm.h>
+#include <windows.h>
+#include <commdlg.h>
+#include <vector>
+
+namespace { HWND hwnd_of(SDL_Window *w) {
+    SDL_SysWMinfo wi; SDL_VERSION(&wi.version);
+    return SDL_GetWindowWMInfo(w, &wi) ? wi.info.win.window : nullptr;
+} }
+
+bool NativeMenu::init(SDL_Window *w, bool kb) {
+    win = w;
+    HWND h = hwnd_of(w);
+    if (!h) return false;
+    HMENU bar = CreateMenu(), file = CreatePopupMenu(), view = CreatePopupMenu();
+    AppendMenuW(file, MF_STRING, OPEN_DISK, L"&Open Disk Image...\tdrag && drop");
+    AppendMenuW(file, MF_STRING, EJECT_DISK, L"&Eject Disk\tCtrl+E");
+    AppendMenuW(file, MF_STRING, SAVE_DISK, L"&Save Disk Changes\tCtrl+S");
+    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(file, MF_STRING, RESET, L"&Reset\tCtrl+R");
+    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(file, MF_STRING, EXIT, L"E&xit\tAlt+F4");
+    AppendMenuW(view, MF_STRING | (kb ? MF_CHECKED : 0), TOGGLE_KEYBOARD, L"Show &Keyboard\tF9");
+    AppendMenuW(view, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(view, MF_STRING, OPTIONS, L"&Options...\tCtrl+O");
+    AppendMenuW(bar, MF_POPUP, (UINT_PTR)file, L"&File");
+    AppendMenuW(bar, MF_POPUP, (UINT_PTR)view, L"&View");
+    int cw, ch; SDL_GetWindowSize(w, &cw, &ch);
+    SetMenu(h, bar);
+    SDL_SetWindowSize(w, cw, ch);          // keep the client area (SDL accounts for the menu bar)
+    SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+    menu = view; ok = true;
+    return true;
+}
+
+NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
+    if (!ok || e.type != SDL_SYSWMEVENT || !e.syswm.msg) return NONE;
+    const auto &m = e.syswm.msg->msg.win;
+    if (m.msg != WM_COMMAND || HIWORD(m.wParam) != 0) return NONE;
+    int id = LOWORD(m.wParam);
+    return id >= OPEN_DISK && id <= OPTIONS ? (Cmd)id : NONE;
+}
+
+void NativeMenu::set_keyboard(bool shown) {
+    if (ok) CheckMenuItem((HMENU)menu, TOGGLE_KEYBOARD, MF_BYCOMMAND | (shown ? MF_CHECKED : MF_UNCHECKED));
+}
+
+std::string NativeMenu::open_disk_dialog() {
+    wchar_t buf[1024] = L"";
+    OPENFILENAMEW of{}; of.lStructSize = sizeof of; of.hwndOwner = hwnd_of(win);
+    of.lpstrFilter = L"Disk images (*.img;*.efe;*.iso;*.hda)\0*.img;*.efe;*.iso;*.hda\0All files (*.*)\0*.*\0";
+    of.lpstrFile = buf; of.nMaxFile = 1024; of.lpstrTitle = L"Open disk image";
+    of.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!GetOpenFileNameW(&of)) return "";
+    int n = WideCharToMultiByte(CP_UTF8, 0, buf, -1, nullptr, 0, nullptr, nullptr);
+    std::string s(n > 0 ? n - 1 : 0, '\0');
+    if (n > 1) WideCharToMultiByte(CP_UTF8, 0, buf, -1, &s[0], n, nullptr, nullptr);
+    return s;
+}
+
+#elif defined(__APPLE__)
+// implemented in mac/menu_mac.mm (pushes SDL user events)
+extern bool mac_menu_init(Uint32 event_type, bool kb);
+extern void mac_menu_set_keyboard(bool shown);
+extern std::string mac_open_disk_dialog();
+static Uint32 g_menu_event = 0;
+
+bool NativeMenu::init(SDL_Window *w, bool kb) {
+    win = w;
+    g_menu_event = SDL_RegisterEvents(1);
+    if (g_menu_event == (Uint32)-1) return false;
+    ok = mac_menu_init(g_menu_event, kb);
+    return ok;
+}
+NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
+    if (!ok || e.type != g_menu_event) return NONE;
+    return (Cmd)e.user.code;
+}
+void NativeMenu::set_keyboard(bool shown) { if (ok) mac_menu_set_keyboard(shown); }
+std::string NativeMenu::open_disk_dialog() { return mac_open_disk_dialog(); }
+
+#else
+bool NativeMenu::init(SDL_Window *w, bool) { win = w; return false; }
+NativeMenu::Cmd NativeMenu::command(const SDL_Event &) const { return NONE; }
+void NativeMenu::set_keyboard(bool) {}
+std::string NativeMenu::open_disk_dialog() { return ""; }
+#endif

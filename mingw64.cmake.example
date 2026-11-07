@@ -1,0 +1,14 @@
+# Toolchain file for cross-compiling the Windows build from Linux with llvm-mingw.
+# Copy to mingw64.cmake and adjust the two paths.
+set(LLVM_MINGW /opt/llvm-mingw)                       # llvm-mingw folder
+set(SDL2_MINGW /opt/SDL2-2.30.12/x86_64-w64-mingw32)  # from SDL2-devel-2.30.12-mingw.tar.gz
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_SYSTEM_PROCESSOR x86_64)
+set(CMAKE_C_COMPILER ${LLVM_MINGW}/bin/x86_64-w64-mingw32-clang)
+set(CMAKE_CXX_COMPILER ${LLVM_MINGW}/bin/x86_64-w64-mingw32-clang++)
+set(CMAKE_RC_COMPILER ${LLVM_MINGW}/bin/x86_64-w64-mingw32-windres)
+set(CMAKE_FIND_ROOT_PATH ${LLVM_MINGW}/x86_64-w64-mingw32 ${SDL2_MINGW})
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)

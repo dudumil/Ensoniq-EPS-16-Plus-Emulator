@@ -1,0 +1,7 @@
+Imagens SCSI com nomes ZuluSCSI (precisa da opcao SCSI do EPS-16 Plus,
+que o emulador tem sempre montada):
+  HD0.img   disco rigido no ID 0 (gravavel)
+  CD5.iso   CD-ROM no ID 5 (so leitura)
+  RE1.img / MO2.img  amovivel / magneto-otico
+Um disco novo (ficheiro vazio, p.ex. 100 MB) formata-se no proprio EPS:
+Command > System•MIDI > FORMAT SCSI DRIVE.

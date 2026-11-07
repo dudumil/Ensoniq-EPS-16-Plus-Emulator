@@ -1,0 +1,3 @@
+// Windows resources: manifest (UTF-8 code page so that file names with accents work)
+1 24 "eps16.manifest"
+1 ICON "eps16.ico"

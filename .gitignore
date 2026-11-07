@@ -1,0 +1,17 @@
+# build output
+build/
+build-*/
+*.o
+/eps16
+/eps16-cli
+*.exe
+*.wav
+__pycache__/
+# never commit ROMs, OS disks or disk images
+roms/*
+!roms/LEIA-ME.txt
+scsi/*
+!scsi/LEIA-ME.txt
+*.img
+*.iso
+*.bin

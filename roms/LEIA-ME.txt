@@ -1,0 +1,7 @@
+A ROM e o sistema operativo do EPS-16 Plus nao estao incluidos.
+Coloca aqui:
+  eps16plus-u28.bin   (EPROM U28, bytes pares)
+  eps16plus-u27.bin   (EPROM U27, bytes impares)
+  os130.img           (imagem da disquete do OS; serve tambem
+                       Ensoniq_EPS16_OS_v130_untouched_Omniflop_format.img
+                       ou qualquer outra .img que seja a unica da pasta)
