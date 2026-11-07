@@ -73,6 +73,10 @@ Não estão incluídos. Coloca na pasta `roms` ao lado do executável:
 Ver `LEIA-ME-WINDOWS.txt` para o guia completo. Resumo:
 - **Menus da janela:** File (abrir/ejetar/gravar disco, reset) e View (teclado do ecrã, Options).
 - Arrasta uma `.img` para a janela para a meter no drive (ou no SCSI, se tiver nome de disco SCSI).
+- Arrasta um ou mais instrumentos `.efe` para a janela: vão para uma disquete temporária que entra
+  no drive (depois é LOAD como de qualquer disquete).
+- Clique direito numa seta Up/Down = as duas setas juntas: o valor salta para o meio da escala
+  (0 em -99…+99, 50 em 0…99), como no aparelho.
 - O `os130.img` vem com os parâmetros globais em modo MIDI MULTI, instrumentos 1-8 nos canais 9-16;
   por omissão o MIDI In é encaminhado para o "Keyboard channel" das opções.
 
@@ -84,7 +88,7 @@ Ver `LEIA-ME-WINDOWS.txt` para o guia completo. Resumo:
 | teclado numérico | botões de página como impressos: 1 Env 1 … 4 Pitch … 9 Layer, 0 Track |
 | R | RECORD (mantém-no e carrega em Espaço para gravar) |
 | Espaço | PLAY |
-| Setas | setas do painel |
+| Setas | setas do painel (Up + Down juntas = meio da escala) |
 | Enter / Esc | YES•ENTER / NO•CANCEL |
 | F11 / F12 | Patch Select esquerdo / direito |
 | F9, Ctrl+O | teclado do ecrã, opções |
@@ -101,6 +105,7 @@ Ver `LEIA-ME-WINDOWS.txt` para o guia completo. Resumo:
 | `src/panel.*`, `src/vfd.*` | protocolo do painel e mostrador VFD |
 | `src/sdl_main.cpp`, `src/rack_ui.*`, `src/ui_text.*`, `src/native_menu.*` | app com janela |
 | `src/cli.cpp` | versão de linha de comandos (testes) |
+| `src/efe_disk.*` | põe ficheiros `.efe` numa disquete temporária (largar na janela) |
 | `tools/` | geradores da arte do painel, fontes, ícones; `efe2img.py` junta ficheiros EFE a uma imagem |
 
 ## Licenças e créditos

@@ -51,7 +51,7 @@ void NativeMenu::set_keyboard(bool shown) {
 std::string NativeMenu::open_disk_dialog() {
     wchar_t buf[1024] = L"";
     OPENFILENAMEW of{}; of.lStructSize = sizeof of; of.hwndOwner = hwnd_of(win);
-    of.lpstrFilter = L"Disk images (*.img;*.efe;*.iso;*.hda)\0*.img;*.efe;*.iso;*.hda\0All files (*.*)\0*.*\0";
+    of.lpstrFilter = L"Disk images and instruments (*.img;*.efe;*.efa;*.iso;*.hda)\0*.img;*.efe;*.efa;*.iso;*.hda\0All files (*.*)\0*.*\0";
     of.lpstrFile = buf; of.nMaxFile = 1024; of.lpstrTitle = L"Open disk image";
     of.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
     if (!GetOpenFileNameW(&of)) return "";

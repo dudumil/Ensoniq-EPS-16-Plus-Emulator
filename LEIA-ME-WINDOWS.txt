@@ -76,6 +76,8 @@ AUDIO E MIDI (View > Options ou Ctrl+O)
 
 DISQUETES
    Arrasta um ficheiro .img para a janela (= meter a disquete).
+   Instrumentos soltos (.efe): arrasta um ou varios para a janela; vao para
+   uma disquete temporaria que entra no drive. Depois LOAD como de costume.
    Ctrl+E ejeta, Ctrl+S grava as alteracoes na imagem (tambem ao ejetar/sair).
 
 SCSI
@@ -91,6 +93,8 @@ MIDI ou o teclado do ecra)
      3 Env 3, 4 Pitch, 5 Filter, 6 Amp, 7 LFO, 8 Wave, 9 Layer, 0 Track
    R = RECORD (mantem-no e carrega em Espaco para gravar),  Espaco = PLAY
    setas = setas do painel,  Enter = YES/ENTER,  Esc/Backspace = NO/CANCEL
+   cima + baixo juntas = o valor salta para o meio da escala (0 em -99..+99,
+     50 em 0..99), como no aparelho. Com o rato: clique direito numa das setas.
    F11/F12 = Patch Select esquerdo/direito (podes carregar nos dois)
    F9 = esconder/mostrar o teclado do ecra (View > Show Keyboard)
    Ctrl+F efeitos (ESP) on/off,  Ctrl+I entrada on/off,  Ctrl+R reset

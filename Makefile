@@ -4,7 +4,7 @@ CXXFLAGS ?= -O2 -std=c++17 -Wall -Wno-unused-function
 CFLAGS ?= -O2
 INC = -Imusashi -Isrc
 MUSASHI_OBJ = build/m68kcpu.o build/m68kops.o build/m68kdasm.o build/softfloat.o
-CORE_OBJ = build/eps16.o build/duart.o build/wd1772.o build/hd63450.o build/es5505.o build/es5510.o build/panel.o build/scsi.o
+CORE_OBJ = build/eps16.o build/duart.o build/wd1772.o build/hd63450.o build/es5505.o build/es5510.o build/panel.o build/scsi.o build/efe_disk.o
 all: eps16-cli
 build:
 	mkdir -p build

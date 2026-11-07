@@ -2,6 +2,7 @@
 // Command-line runner for the EPS-16 Plus emulator (headless, for testing).
 //   eps16-cli [-r romdir] [-d disk.img] [-t seconds] [-k t:button ...] [-w out.wav]
 #include "eps16.h"
+#include "efe_disk.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -113,7 +114,21 @@ int main(int argc, char **argv) {
         if (const char *r = getenv("EPS_TRACE_RANGE")) sscanf(r, "%x:%x", &lo, &hi);
         m.on_instr = [](uint32_t pc) { if (n > 0 && pc >= lo && pc <= hi) { n--; char b[128]; m68k_disassemble(b, pc, M68K_CPU_TYPE_68000); fprintf(stderr, "%06x %s  D0=%08x A0=%08x A7=%08x\n", pc, b, m68k_get_reg(NULL, M68K_REG_D0), m68k_get_reg(NULL, M68K_REG_A0), m68k_get_reg(NULL, M68K_REG_A7)); } };
     }
+    if (const char *e = getenv("EPS_DISASM")) {
+        uint32_t lo, hi; sscanf(e, "%x:%x", &lo, &hi);
+        for (uint32_t p = lo; p < hi;) { char b[128]; int n = m68k_disassemble(b, p, M68K_CPU_TYPE_68000); printf("%06x %s\n", p, b); p += n; }
+        return 0;
+    }
     for (auto &f : scsi_files) fprintf(stderr, "%s\n", m.scsi.attach_file(f).c_str());
+    if (!disk.empty() && efe::is_single_file(disk)) {   // an EFE: put it on a temporary floppy
+        std::string path, label, err = efe::make_disk_file({ disk }, false, "eps16-cli-", path, label);
+        if (!err.empty()) { fprintf(stderr, "%s\n", err.c_str()); return 1; }
+        disk = path;
+    }
+    for (auto &sw : swaps) if (efe::is_single_file(sw.second)) {
+        std::string path, label, err = efe::make_disk_file({ sw.second }, false, "eps16-cli-", path, label);
+        if (err.empty()) sw.second = path; else fprintf(stderr, "%s\n", err.c_str());
+    }
     if (!disk.empty() && !m.insert_disk(disk)) fprintf(stderr, "cannot open %s\n", disk.c_str());
     std::string lastd;
     std::vector<float> out;
@@ -141,6 +156,10 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 16; i++) printf("%d", m.panel.ind[i]);
     printf("\n");
     if (pcprof) { std::vector<std::pair<int, uint32_t>> v; for (auto &p : pcs) v.push_back({ p.second, p.first }); std::sort(v.rbegin(), v.rend()); for (int i = 0; i < 15 && i < (int)v.size(); i++) printf("  pc %06x x%d\n", v[i].second, v[i].first); }
+    if (const char *e = getenv("EPS_DISASM_END")) {
+        uint32_t lo, hi; sscanf(e, "%x:%x", &lo, &hi);
+        for (uint32_t p = lo; p < hi;) { char b[128]; int n = m68k_disassemble(b, p, M68K_CPU_TYPE_68000); printf("%06x %s\n", p, b); p += n; }
+    }
     if (getenv("EPS_DUMP_OTIS")) m.otis.dump(stdout);
     if (getenv("EPS_DUMP_ESP")) { m.esp.list_program(stdout); printf("esp halted=%d\n", m.esp.halted()); }
     if (const char *f = getenv("EPS_DUMP_WAVE")) { FILE *o = fopen(f, "wb"); fwrite(m.wave.data(), 2, m.wave.size(), o); fclose(o); }

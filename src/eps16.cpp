@@ -184,6 +184,7 @@ void Eps16::io_write(uint32_t a, uint32_t v, int sz) {
     switch (page) {
     case 0x200000:
         if (trace_io) fprintf(stderr, "OTIS W %02x = %04x pc=%06x\n", (a >> 1) & 15, v, last_pc());
+        if (DBG(EPS_DBG_VOL)) { int r = (a >> 1) & 15; if (r <= 11) fprintf(stderr, "V %.5f p%02x r%d %04x sz%d pc=%06x sr=%04x\n", total_cycles / cpu_clock, otis.read(15), r, v, sz, last_pc(), m68k_get_reg(NULL, M68K_REG_SR)); }
         if (sz == 2) otis.write((a >> 1) & 15, v);
         else if (a & 1) otis.write((a >> 1) & 15, v & 0xff, 0x00ff);
         else otis.write((a >> 1) & 15, (v & 0xff) << 8, 0xff00);

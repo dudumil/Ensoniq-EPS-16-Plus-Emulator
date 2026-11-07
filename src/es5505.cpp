@@ -40,7 +40,10 @@ int32_t ES5505::volume(int32_t s, uint8_t vol) {
 
 void ES5505::generate_voice(Voice &v, int32_t *dest) {
     uint32_t acc = v.accum & ACC_MASK;
-    if (v.control & CR_STOPMASK) return;
+    // STOP0/STOP1 only stop the address ALU (spec 2.2): a stopped voice is still fetched,
+    // filtered and mixed at its volume, so its filters keep settling and the output does not
+    // drop to zero abruptly when a one-shot sample reaches its end
+    const bool stopped = (v.control & CR_STOPMASK) != 0;
     int bank = (v.control & CR_BS) ? 1 : 0;
     uint32_t a = acc >> FRAC;
     int32_t s1 = (int16_t)read_sample(bank, a & 0xfffff);
@@ -72,6 +75,7 @@ void ES5505::generate_voice(Voice &v, int32_t *dest) {
     s = clamp16(s);
     dest[0] += volume(s, v.lvol);
     dest[1] += volume(s, v.rvol);
+    if (stopped) return;
 
     // address generation and looping (spec 4.1: the remainder past the end keeps the phase)
     int64_t ac = acc, st = v.start, en = v.end;

@@ -21,7 +21,7 @@ target_include_directories(musashi PUBLIC musashi musashi/softfloat src)
 # --- machine core
 add_library(eps16core STATIC
   src/eps16.cpp src/duart.cpp src/wd1772.cpp src/hd63450.cpp
-  src/es5505.cpp src/es5510.cpp src/panel.cpp src/scsi.cpp)
+  src/es5505.cpp src/es5510.cpp src/panel.cpp src/scsi.cpp src/efe_disk.cpp)
 target_include_directories(eps16core PUBLIC src musashi)
 target_link_libraries(eps16core PUBLIC musashi)
 
