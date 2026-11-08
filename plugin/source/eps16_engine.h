@@ -5,6 +5,7 @@
 // instance that wants to run is swapped in first (activate()).
 #pragma once
 #include <atomic>
+#include <filesystem>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -41,7 +42,7 @@ public:
     void process(float *const *out, const float *in_l, const float *in_r, int frames,
                  const std::vector<EngineMidi> &midi, const bool aux_active[3]);
     std::vector<uint8_t> take_midi_out();          // bytes sent by the EPS (audio thread)
-    std::atomic<int> midi_channel{ 9 };            // host MIDI goes to this channel; 0 = unchanged
+    std::atomic<int> midi_channel{ 9 };            // host MIDI goes to this channel; 0 = unchanged (from eps16.cfg)
 
     // ----- control (any thread; queued and applied by process(), or directly when not processing)
     void button(int idx, bool down);               // panel button (RackUI index / PATCH_L / PATCH_R)
@@ -51,17 +52,15 @@ public:
     void eject_disk();
     void attach_scsi(const std::string &path);
     void detach_scsi();
-    // folder of ZuluSCSI-style drive images (HD0.img, CD5.iso ...); "" = the default
-    // (<user folder>/scsi). remember = also the default for new instances and the stand-alone
-    // program (scsi_dir in eps16.cfg)
-    void set_scsi_dir(const std::string &dir, bool remember);
-    std::string scsi_dir() const { return scsi_folder; }
+    // settings come from the stand-alone program (eps16.cfg); call now and then (editor timer)
+    // to pick up changes made there
+    void check_settings();
     void power_reset();
 
     // state saved with the host project
     std::string floppy_path() const;
     std::vector<std::string> scsi_paths() const;
-    void restore(const std::string &floppy, const std::vector<std::string> &scsi, const std::string &scsi_dir);
+    void restore(const std::string &floppy, const std::vector<std::string> &scsi);
 
     EngineSnapshot snapshot();
     double emulated_seconds();                     // CPU time of the machine (diagnostics)
@@ -74,6 +73,7 @@ private:
     void set_status(const std::string &s);
     std::string attach_scsi_folder(Eps16 &a);     // (re)attach the folder's drives + the user's images
     std::string scsi_folder_path() const;          // the folder actually used ("" = none)
+    void apply_settings(Eps16 &a, bool first);     // read eps16.cfg and apply it
 
     std::unique_ptr<Eps16> m;
     std::vector<unsigned char> cpu_ctx;
@@ -89,6 +89,7 @@ private:
     std::string floppy;
     std::string scsi_folder;                       // chosen folder, "" = default
     bool patch_held[2] = {};
+    std::filesystem::file_time_type cfg_stamp{};
 };
 
 std::string eps16_module_dir();                    // folder of the plug-in binary

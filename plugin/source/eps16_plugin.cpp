@@ -46,7 +46,6 @@ tresult PLUGIN_API Plugin::initialize(FUnknown *context) {
 
     parameters.addParameter(STR16("Volume"), STR16("%"), 0, volume, ParameterInfo::kCanAutomate, kVolume);
     parameters.addParameter(STR16("Relogio MIDI do host"), nullptr, 1, 0, ParameterInfo::kCanAutomate, kMidiClock);
-    parameters.addParameter(STR16("Canal MIDI (0 = do host)"), nullptr, 16, midi_ch / 16.0, 0, kMidiChannel);
     for (int ch = 0; ch < 16; ch++)
         for (int n = 0; n < kMidiPerChannel; n++) {
             char name[48];
@@ -105,8 +104,6 @@ void Plugin::collect_midi(ProcessData &data) {
                 volume = v; eng.analog(Eps16::AN_VOLUME, (uint16_t)(v * 1023));
             } else if (id == kMidiClock && n > 0 && q->getPoint(n - 1, off, v) == kResultOk) {
                 clock_on = v > 0.5;
-            } else if (id == kMidiChannel && n > 0 && q->getPoint(n - 1, off, v) == kResultOk) {
-                midi_ch = (int)std::lround(v * 16); eng.midi_channel = midi_ch;
             } else if (id >= kMidiBase && id < kMidiBase + 16 * kMidiPerChannel) {
                 int idx = (int)(id - kMidiBase), ch = idx / kMidiPerChannel, c = idx % kMidiPerChannel;
                 for (int32 p = 0; p < n; p++) {
@@ -265,15 +262,13 @@ static const int32 kStateMagic = 0x45505331;   // "EPS1"
 tresult PLUGIN_API Plugin::getState(IBStream *state) {
     IBStreamer s(state, kLittleEndian);
     s.writeInt32(kStateMagic);
-    s.writeInt32(3);
+    s.writeInt32(1);
     s.writeDouble(volume);
     s.writeInt32(clock_on ? 1 : 0);
     s.writeStr8(eng.floppy_path().c_str());
     auto sc = eng.scsi_paths();
     s.writeInt32((int32)sc.size());
     for (auto &p : sc) s.writeStr8(p.c_str());
-    s.writeStr8(eng.scsi_dir().c_str());            // version 2: SCSI folder
-    s.writeInt32(midi_ch);                          // version 3: MIDI channel
     return kResultOk;
 }
 
@@ -289,17 +284,12 @@ tresult PLUGIN_API Plugin::setState(IBStream *state) {
     if (s.readInt32(n)) for (int32 i = 0; i < n && i < 8; i++) {
         char8 *p = s.readStr8(); scsi.push_back(p ? std::string(p) : std::string()); delete[] p;
     }
-    std::string sdir;
-    if (ver >= 2) if (char8 *d = s.readStr8()) { sdir = d; delete[] d; }
-    int32 mch = 9;
-    if (ver >= 3) s.readInt32(mch);
-    midi_ch = mch < 0 ? 0 : mch > 16 ? 16 : mch; eng.midi_channel = midi_ch;
-    setParamNormalized(kMidiChannel, midi_ch / 16.0);
+    // (versions 2-3 also stored a SCSI folder and a MIDI channel: these now come from the app)
     volume = vol; clock_on = clk != 0;
     setParamNormalized(kVolume, volume);
     setParamNormalized(kMidiClock, clock_on ? 1 : 0);
     eng.analog(Eps16::AN_VOLUME, (uint16_t)(volume * 1023));
-    eng.restore(floppy, scsi, sdir);
+    eng.restore(floppy, scsi);
     return kResultOk;
 }
 
@@ -308,13 +298,6 @@ tresult PLUGIN_API Plugin::getMidiControllerAssignment(int32 busIndex, int16 cha
     if (busIndex != 0 || channel < 0 || channel > 15 || cc < 0 || cc >= kMidiPerChannel) return kResultFalse;
     id = kMidiBase + channel * kMidiPerChannel + cc;
     return kResultTrue;
-}
-
-void Plugin::set_midi_channel(int ch) {
-    midi_ch = ch < 0 ? 0 : ch > 16 ? 16 : ch;
-    eng.midi_channel = midi_ch;
-    double v = midi_ch / 16.0;
-    beginEdit(kMidiChannel); setParamNormalized(kMidiChannel, v); performEdit(kMidiChannel, v); endEdit(kMidiChannel);
 }
 
 void Plugin::edit_volume(double v) {

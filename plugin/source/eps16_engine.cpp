@@ -84,11 +84,7 @@ bool Eps16Engine::boot(const std::string &resources, const std::string &user) {
     floppy = fs::exists(os_user, ec) ? os_user.u8string() : std::string();
     if (!floppy.empty() && !m->fdc.load(floppy)) floppy.clear();
     m->analog[Eps16::AN_VOLUME] = 1000;
-    {   // SCSI folder: the one chosen in the stand-alone program or in a plug-in (eps16.cfg)
-        Settings st; st.load((fs::u8path(user) / "eps16.cfg").u8string());
-        scsi_folder = st.scsi_dir;
-        attach_scsi_folder(*m);
-    }
+    apply_settings(*m, true);              // the stand-alone program's settings (eps16.cfg)
     m->reset();
     ok = true;
     set_status(floppy.empty() ? "Sem disquete do OS: arrasta uma imagem para o painel" : "A arrancar o OS...");
@@ -260,16 +256,31 @@ std::string Eps16Engine::attach_scsi_folder(Eps16 &a) {
     return d;
 }
 
-void Eps16Engine::set_scsi_dir(const std::string &dir, bool remember) {
-    if (remember) {
-        std::string cfg = (fs::u8path(user_dir) / "eps16.cfg").u8string();
-        Settings st; st.load(cfg); st.path = cfg; st.scsi_dir = dir; st.save();
-    }
-    push(cmd_mx, cmds, [this, dir](Eps16 &a) {
-        scsi_folder = dir;
+// The plug-in has no settings of its own: it follows the stand-alone program's eps16.cfg (SCSI
+// folder, MIDI In > channel, BUS 2/3 into main, AUX 1 off), read at start and whenever it changes.
+static fs::file_time_type cfg_time(const std::string &p) {
+    std::error_code ec;
+    auto t = fs::last_write_time(fs::u8path(p), ec);
+    return ec ? fs::file_time_type::min() : t;
+}
+
+void Eps16Engine::apply_settings(Eps16 &a, bool first) {
+    std::string cfg = (fs::u8path(user_dir) / "eps16.cfg").u8string();
+    cfg_stamp = cfg_time(cfg);
+    Settings st; st.load(cfg);
+    midi_channel = st.midi_remap ? st.kbd_channel : 0;
+    a.bus_to_main[0] = st.bus_main[0]; a.bus_to_main[1] = st.bus_main[1];
+    a.aux1_mix = st.aux_pair[0] != -2;
+    if (first || st.scsi_dir != scsi_folder) {
+        scsi_folder = st.scsi_dir;
         std::string d = attach_scsi_folder(a);
-        set_status(d.empty() ? "Sem pasta SCSI" : "Pasta SCSI: " + d + "  (Reset para o EPS ver as drives)");
-    });
+        if (!first) set_status(d.empty() ? "Sem pasta SCSI" : "Pasta SCSI da app: " + d + "  (Reset para o EPS ver as drives)");
+    }
+}
+
+void Eps16Engine::check_settings() {
+    if (!ok || cfg_time((fs::u8path(user_dir) / "eps16.cfg").u8string()) == cfg_stamp) return;
+    push(cmd_mx, cmds, [this](Eps16 &a) { apply_settings(a, false); });
 }
 
 void Eps16Engine::detach_scsi() {
@@ -289,8 +300,8 @@ void Eps16Engine::power_reset() {
 std::string Eps16Engine::floppy_path() const { return floppy; }
 std::vector<std::string> Eps16Engine::scsi_paths() const { return scsi_list; }
 
-void Eps16Engine::restore(const std::string &fl, const std::vector<std::string> &scsi, const std::string &sdir) {
-    push(cmd_mx, cmds, [this, fl, scsi, sdir](Eps16 &a) {
+void Eps16Engine::restore(const std::string &fl, const std::vector<std::string> &scsi) {
+    push(cmd_mx, cmds, [this, fl, scsi](Eps16 &a) {
         std::error_code ec;
         bool any = false;
         scsi_list.clear();
@@ -299,7 +310,6 @@ void Eps16Engine::restore(const std::string &fl, const std::vector<std::string> 
             if (scsi_list.size() <= i) scsi_list.resize(i + 1);
             scsi_list[i] = scsi[i]; any = true;
         }
-        if (!sdir.empty()) { any = any || sdir != scsi_folder; scsi_folder = sdir; }
         attach_scsi_folder(a);
         if (!fl.empty() && fl != floppy && fs::exists(fs::u8path(fl), ec)) {
             if (a.fdc.dirty) a.fdc.save();

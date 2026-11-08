@@ -133,6 +133,7 @@ PLUG-IN VST3 (pasta VST3)
       (escreve %APPDATA% na barra do Explorador). A app tambem as encontra la.
    3. No anfitriao procura plug-ins de novo e abre "EPS-16 Plus Emulator".
    - Saidas Main + AUX 1 / BUS 2 / BUS 3 (ativa-as no anfitriao para sairem a parte).
-   - As notas do anfitriao vao para o canal 9 (instrumento 1 do os130.img em
-     MIDI MULTI); o menu "MIDI -> canal" da barra muda isso.
-   - Barra: Disquete..., Ejetar, Disco SCSI..., Desligar SCSI, Pasta SCSI..., Reset.
+   - O plug-in usa as definicoes da app (pasta SCSI, canal MIDI, BUS 2/3...):
+     para mudar, abre o eps16.exe, muda nas Options e o plug-in segue.
+     Por omissao as notas do anfitriao vao para o canal 9 (instrumento 1).
+   - Barra: Disquete..., Ejetar, Disco SCSI..., Desligar SCSI, Reset.

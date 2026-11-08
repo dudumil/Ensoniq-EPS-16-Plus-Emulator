@@ -181,7 +181,7 @@ private:
 };
 
 // ------------------------------------------------------------------ editor
-enum { kTagFloppy = 1, kTagEject, kTagScsi, kTagScsiOff, kTagScsiDir, kTagReset, kTagClock, kTagMidiCh };
+enum { kTagFloppy = 1, kTagEject, kTagScsi, kTagScsiOff, kTagReset, kTagClock };
 
 static int rack_height() {
     static int h = 0;
@@ -221,22 +221,12 @@ bool PLUGIN_API Editor::open(void *parent, const PlatformType &type) {
     button("Ejetar", kTagEject, 60);
     button("Disco SCSI...", kTagScsi, 100);
     button("Desligar SCSI", kTagScsiOff, 104);
-    button("Pasta SCSI...", kTagScsiDir, 96);
     button("Reset", kTagReset, 56);
     auto *clk = new CTextButton(CRect(x, y0, x + 150, y0 + h), this, kTagClock, "Relogio MIDI do host", CTextButton::kOnOffStyle);
     clk->setFont(kNormalFontSmall); clk->setRoundRadius(3);
     clk->setValue((float)plug->getParamNormalized(kMidiClock));
     frame->addView(clk);
     x += 156;
-    // host MIDI -> channel (the OS disk is set to MIDI MULTI, instrument 1 on channel 9)
-    auto *mc = new COptionMenu(CRect(x, y0, x + 118, y0 + h), this, kTagMidiCh);
-    mc->addEntry("MIDI: canais do host");
-    for (int c = 1; c <= 16; c++) mc->addEntry(("MIDI -> canal " + std::to_string(c)).c_str());
-    mc->setCurrent(plug->engine().midi_channel.load());
-    mc->setFont(kNormalFontSmall);
-    mc->setFontColor(CColor(220, 220, 220)); mc->setBackColor(CColor(40, 42, 46)); mc->setFrameColor(CColor(90, 92, 96));
-    frame->addView(mc);
-    x += 124;
     status = new CTextLabel(CRect(x + 4, y0, W - 8, y0 + h), "");
     status->setFont(kNormalFontSmall);
     status->setFontColor(CColor(170, 200, 230));
@@ -258,6 +248,7 @@ void PLUGIN_API Editor::close() {
 
 void Editor::tick() {
     if (!rack) return;
+    if (++settings_ticks >= 60) { settings_ticks = 0; plug->engine().check_settings(); }   // ~2 s
     EngineSnapshot s = plug->engine().snapshot();
     rack->update(s);
     if (status && s.status_serial != last_status) {
@@ -283,21 +274,6 @@ void Editor::choose_file(bool scsi) {
     sel->forget();
 }
 
-void Editor::choose_scsi_dir() {
-    if (!frame) return;
-    auto *sel = CNewFileSelector::create(frame, CNewFileSelector::kSelectDirectory);
-    if (!sel) return;
-    sel->setTitle("Pasta das drives SCSI (HD0.img, CD5.iso ...)");
-    std::string cur = plug->engine().scsi_dir();
-    sel->setInitialDirectory((cur.empty() ? eps16_user_dir() : cur).c_str());
-    Plugin *p = plug;
-    sel->run([p](CNewFileSelector *s) {
-        if (s->getNumSelectedFiles() == 0) return;
-        p->engine().set_scsi_dir(s->getSelectedFile(0), true);
-    });
-    sel->forget();
-}
-
 void Editor::valueChanged(CControl *c) {
     int tag = c->getTag();
     if (tag == kTagClock) {
@@ -305,7 +281,6 @@ void Editor::valueChanged(CControl *c) {
         plug->beginEdit(kMidiClock); plug->setParamNormalized(kMidiClock, v); plug->performEdit(kMidiClock, v); plug->endEdit(kMidiClock);
         return;
     }
-    if (tag == kTagMidiCh) { plug->set_midi_channel((int)(c->getValue() + 0.5f)); return; }
     if (c->getValue() < 0.5f) return;               // kick buttons: act on press only
     Eps16Engine &eng = plug->engine();
     switch (tag) {
@@ -313,7 +288,6 @@ void Editor::valueChanged(CControl *c) {
     case kTagEject: eng.eject_disk(); break;
     case kTagScsi: choose_file(true); break;
     case kTagScsiOff: eng.detach_scsi(); break;
-    case kTagScsiDir: choose_scsi_dir(); break;
     case kTagReset: eng.power_reset(); break;
     }
 }

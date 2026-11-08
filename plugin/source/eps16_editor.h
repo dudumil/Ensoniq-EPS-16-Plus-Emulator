@@ -26,12 +26,12 @@ public:
 private:
     void tick();
     void choose_file(bool scsi);
-    void choose_scsi_dir();
     Plugin *plug;
     RackView *rack = nullptr;
     VSTGUI::CTextLabel *status = nullptr;
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> timer;
     uint32_t last_status = ~0u;
+    int settings_ticks = 0;
 };
 
 } // namespace Eps16Vst
