@@ -1,5 +1,6 @@
 // Plug-in editor: the rack front panel (drawn off screen with SDL's software renderer and shown
-// as a bitmap in a VSTGUI frame) plus a small bar with disk buttons and a status line.
+// as a bitmap in a VSTGUI frame) and nothing else: disks go in by drag and drop,
+// reset and eject are the panel's own buttons, and the settings are the stand-alone program's.
 #pragma once
 #include "public.sdk/source/vst/vstguieditor.h"
 #include "vstgui/vstgui.h"
@@ -21,16 +22,14 @@ public:
     Plugin *plugin() { return plug; }
 
     static constexpr int W = 1120;          // logical size of the panel (points)
-    static constexpr int BAR = 30;          // height of the button bar
 
 private:
     void tick();
-    void choose_file(bool scsi);
     Plugin *plug;
     RackView *rack = nullptr;
     VSTGUI::CTextLabel *status = nullptr;
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> timer;
-    uint32_t last_status = ~0u;
+    uint32_t last_status = ~0u, status_until = 0;
     int settings_ticks = 0;
 };
 

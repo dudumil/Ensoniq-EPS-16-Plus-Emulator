@@ -12,7 +12,6 @@ using namespace Steinberg::Vst;
 
 enum ParamIds : ParamID {
     kVolume = 0,          // front panel Volume slider
-    kMidiClock = 1,       // send the host tempo/transport to the EPS as MIDI clock
     kMidiBase = 1000,     // hidden parameters fed by the host's MIDI controllers: kMidiBase + ch*131 + n
 };
 static const int kMidiPerChannel = 131;          // CC 0..127, aftertouch, pitch bend, program change
@@ -52,7 +51,6 @@ public:
 
 private:
     void collect_midi(ProcessData &data);
-    void midi_clock(ProcessData &data);
     void send_midi_out(ProcessData &data);
 
     Eps16Engine eng;

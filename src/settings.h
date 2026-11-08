@@ -23,6 +23,8 @@ struct Settings {
     // SCSI drives: folder with ZuluSCSI-style images (HD0.img, CD5.iso ...); "" = the "scsi" folder
     // next to the program
     std::string scsi_dir;
+    // the program's own folder, recorded at start so that the VST3 plug-in finds the same files
+    std::string app_dir;
 
     std::string path;                  // file the settings were loaded from / are saved to
     bool load(const std::string &file);

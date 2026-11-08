@@ -437,6 +437,14 @@ int main(int argc, char **argv) {
         std::string dir;
         if (char *pp = SDL_GetPrefPath("Ensoniq", "EPS16emu")) { dir = pp; SDL_free(pp); }
         cfg.load(dir + "eps16.cfg");
+        cfg.path = dir + "eps16.cfg";
+    }
+    // record the program's folder: the VST3 plug-in looks for the ROMs, the OS disk and the
+    // "scsi" folder there too, so that both use the same files
+    if (char *bp = SDL_GetBasePath()) {
+        std::string b = bp; SDL_free(bp);
+        while (b.size() > 1 && (b.back() == '/' || b.back() == '\\')) b.pop_back();
+        if (!b.empty() && cfg.app_dir != b) { cfg.app_dir = b; cfg.save(); }
     }
     if (!audio_driver.empty()) cfg.audio_api = audio_driver;
     if (audio_in) cfg.audio_in = "*";

@@ -18,5 +18,5 @@
 #define stringCompanyName     "EPS16emu"
 #define stringCompanyWeb      ""
 #define stringCompanyEmail    ""
-#define stringLegalCopyright  "Emulador EPS-16 Plus (projeto pessoal)"
+#define stringLegalCopyright  "EPS-16 Plus emulator (personal project)"
 #define stringLegalTrademarks "VST is a trademark of Steinberg Media Technologies GmbH"

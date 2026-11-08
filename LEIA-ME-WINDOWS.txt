@@ -129,11 +129,12 @@ PASTA DAS DRIVES SCSI
 PLUG-IN VST3 (pasta VST3)
    1. Copia a pasta VST3\EPS16.vst3 inteira para
         C:\Program Files\Common Files\VST3
-   2. Copia as ROMs e o os130.img para  %APPDATA%\Ensoniq\EPS16emu\roms
-      (escreve %APPDATA% na barra do Explorador). A app tambem as encontra la.
+   2. Abre o eps16.exe uma vez: ele grava a sua pasta e o plug-in passa a usar
+      os mesmos ficheiros (ROMs e os130.img da pasta roms, pasta scsi).
    3. No anfitriao procura plug-ins de novo e abre "EPS-16 Plus Emulator".
    - Saidas Main + AUX 1 / BUS 2 / BUS 3 (ativa-as no anfitriao para sairem a parte).
    - O plug-in usa as definicoes da app (pasta SCSI, canal MIDI, BUS 2/3...):
      para mudar, abre o eps16.exe, muda nas Options e o plug-in segue.
      Por omissao as notas do anfitriao vao para o canal 9 (instrumento 1).
-   - Barra: Disquete..., Ejetar, Disco SCSI..., Desligar SCSI, Reset.
+   - So o painel, em ingles: arrasta .img ou .efe para o painel; o botao de
+     ejetar do drive ejeta; Power mantido ~1 s faz reset.

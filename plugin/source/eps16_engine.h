@@ -35,6 +35,7 @@ public:
     bool boot(const std::string &resources, const std::string &user);
     bool booted() const { return ok; }
     const std::string &error() const { return err; }
+    void message(const std::string &s) { set_status(s); }   // a line for the editor
 
     void set_sample_rate(double fs);
     // out[0..7] = main L/R, aux1 L/R, aux2 L/R, aux3 L/R (any may be null); in = stereo input or null.
@@ -88,6 +89,7 @@ private:
     std::vector<std::string> scsi_list;            // images attached by the user, by SCSI ID
     std::string floppy;
     std::string scsi_folder;                       // chosen folder, "" = default
+    std::string app_dir;                           // the stand-alone program's folder (from the .cfg)
     bool patch_held[2] = {};
     std::filesystem::file_time_type cfg_stamp{};
 };

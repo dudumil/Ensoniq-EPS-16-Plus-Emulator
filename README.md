@@ -120,18 +120,20 @@ SCSI DRIVE do EPS o deixa (não é preciso formatar). Depois File → Reset para
 
 ### Plug-in VST3 (`EPS16.vst3`)
 
-- Copia a pasta `EPS16.vst3` para `C:\Program Files\Common Files\VST3` e as ROMs e o `os130.img` para
-  `%APPDATA%\Ensoniq\EPS16emu\roms` (a mesma pasta que a app usa).
+- Copia a pasta `EPS16.vst3` para `C:\Program Files\Common Files\VST3` e abre a app uma vez: ela
+  grava a sua pasta em `eps16.cfg` (`app_dir=`) e o plug-in passa a usar os mesmos ficheiros (as ROMs
+  e o `os130.img` da pasta `roms` da app, a pasta `scsi`). Também os encontra em
+  `%APPDATA%\Ensoniq\EPS16emu\roms`.
 - Saídas Main + AUX 1, BUS 2, BUS 3 (as do OEX-6; ativa-as no anfitrião para saírem à parte); entrada
-  estéreo para samplar; MIDI In/Out; "Relógio MIDI do host" para o sequenciador seguir o projeto.
+  estéreo para samplar; MIDI In/Out; parâmetro Volume.
 - **Definições**: o plug-in não tem opções próprias, usa as da app (`eps16.cfg` na mesma pasta): pasta
   das drives SCSI, "MIDI In > channel" e "Keyboard channel" (por omissão as notas do anfitrião vão para
   o canal 9, o instrumento 1 do `os130.img` em MIDI MULTI), BUS 2/3 na mistura e AUX 1 desligado. Para
   mudar, abre a app e muda nas Options; o plug-in lê-as ao arrancar e volta a lê-las quando o ficheiro
   muda (com o editor aberto).
-- Barra: Disquete…, Ejetar, Disco SCSI…, Desligar SCSI, Reset. Arrastar `.img` ou `.efe` para o painel
-  funciona como na app; clique direito numa seta = cima + baixo.
-- O projeto guarda volume, relógio e os caminhos dos discos; ao abrir, o EPS arranca de novo com eles.
+- Editor só com o painel, em inglês: arrastar `.img` ou `.efe` para o painel mete-os no drive; o botão
+  de ejetar do drive ejeta; Power mantido ~1 s faz reset; clique direito numa seta = cima + baixo.
+- O projeto guarda o volume e os caminhos dos discos; ao abrir, o EPS arranca de novo com eles.
 
 ## Estrutura do código
 

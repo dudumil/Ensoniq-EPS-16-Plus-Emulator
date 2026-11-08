@@ -181,7 +181,6 @@ private:
 };
 
 // ------------------------------------------------------------------ editor
-enum { kTagFloppy = 1, kTagEject, kTagScsi, kTagScsiOff, kTagReset, kTagClock };
 
 static int rack_height() {
     static int h = 0;
@@ -190,7 +189,7 @@ static int rack_height() {
 }
 
 Editor::Editor(Plugin *p) : VSTGUIEditor(p), plug(p) {
-    ViewRect vr(0, 0, W, rack_height() + BAR);
+    ViewRect vr(0, 0, W, rack_height());
     setRect(vr);
 }
 
@@ -198,41 +197,25 @@ Editor::~Editor() = default;
 
 bool PLUGIN_API Editor::open(void *parent, const PlatformType &type) {
     if (frame) return false;
-    CRect size(0, 0, W, rack_height() + BAR);
+    CRect size(0, 0, W, rack_height());
     frame = new CFrame(size, this);
     frame->setBackgroundColor(CColor(12, 13, 14));
     frame->open(parent, type);
 
     rack = new RackView(CRect(0, 0, W, rack_height()), plug, W * 2);    // 2x pixels: sharp on Retina
-    rack->on_drive = [this]() { choose_file(false); };
+    // a click on the drive slot: how to put a disk in (there are no buttons, as on the unit)
+    rack->on_drive = [this]() { plug->engine().message("Drop a disk image (.img) or an instrument (.efe/.efa) on the panel to put it in the drive"); };
     frame->addView(rack);
 
-    // bottom bar
-    double y0 = rack_height() + 4, h = BAR - 8, x = 8;
-    auto button = [&](const char *t, int tag, double w) {
-        auto *b = new CTextButton(CRect(x, y0, x + w, y0 + h), this, tag, t);
-        b->setFont(kNormalFontSmall);
-        b->setRoundRadius(3);
-        frame->addView(b);
-        x += w + 6;
-        return b;
-    };
-    button("Disquete...", kTagFloppy, 90);
-    button("Ejetar", kTagEject, 60);
-    button("Disco SCSI...", kTagScsi, 100);
-    button("Desligar SCSI", kTagScsiOff, 104);
-    button("Reset", kTagReset, 56);
-    auto *clk = new CTextButton(CRect(x, y0, x + 150, y0 + h), this, kTagClock, "Relogio MIDI do host", CTextButton::kOnOffStyle);
-    clk->setFont(kNormalFontSmall); clk->setRoundRadius(3);
-    clk->setValue((float)plug->getParamNormalized(kMidiClock));
-    frame->addView(clk);
-    x += 156;
-    status = new CTextLabel(CRect(x + 4, y0, W - 8, y0 + h), "");
+    // messages (disk inserted, errors...) appear for a few seconds over the bottom of the panel
+    status = new CTextLabel(CRect(10, rack_height() - 30, W - 10, rack_height() - 8), "");
     status->setFont(kNormalFontSmall);
-    status->setFontColor(CColor(170, 200, 230));
-    status->setBackColor(CColor(0, 0, 0, 0));
+    status->setFontColor(CColor(200, 225, 245));
+    status->setBackColor(CColor(0, 0, 0, 190));
     status->setFrameColor(CColor(0, 0, 0, 0));
     status->setHoriAlign(kLeftText);
+    status->setTextInset(CPoint(8, 0));
+    status->setVisible(false);
     frame->addView(status);
 
     timer = makeOwned<CVSTGUITimer>([this](CVSTGUITimer *) { tick(); }, 33, true);
@@ -251,45 +234,15 @@ void Editor::tick() {
     if (++settings_ticks >= 60) { settings_ticks = 0; plug->engine().check_settings(); }   // ~2 s
     EngineSnapshot s = plug->engine().snapshot();
     rack->update(s);
-    if (status && s.status_serial != last_status) {
+    const std::string &err = plug->engine().error();
+    if (status && !err.empty()) {                   // the machine could not start: say why, for good
+        if (!status->isVisible() || status->getText() != err.c_str()) { status->setText(err.c_str()); status->setVisible(true); }
+    } else if (status && s.status_serial != last_status) {
         last_status = s.status_serial;
-        std::string line = s.status;
-        if (!s.floppy.empty()) line = "[" + std::filesystem::u8path(s.floppy).filename().u8string() + "]  " + line;
-        status->setText(line.c_str());
-    }
+        if (!s.status.empty()) { status->setText(s.status.c_str()); status->setVisible(true); status_until = now_ms() + 5000; }
+    } else if (status && status->isVisible() && now_ms() > status_until) status->setVisible(false);
 }
 
-void Editor::choose_file(bool scsi) {
-    if (!frame) return;
-    auto *sel = CNewFileSelector::create(frame, CNewFileSelector::kSelectFile);
-    if (!sel) return;
-    sel->setTitle(scsi ? "Imagem de disco SCSI" : "Imagem de disquete, instrumento .efe ou disco SCSI");
-    sel->setInitialDirectory(eps16_user_dir().c_str());
-    Plugin *p = plug;
-    sel->run([p, scsi](CNewFileSelector *s) {
-        if (s->getNumSelectedFiles() == 0) return;
-        std::string f = s->getSelectedFile(0);
-        if (scsi) p->engine().attach_scsi(f); else p->engine().insert_disk(f);
-    });
-    sel->forget();
-}
-
-void Editor::valueChanged(CControl *c) {
-    int tag = c->getTag();
-    if (tag == kTagClock) {
-        double v = c->getValue() > 0.5f ? 1.0 : 0.0;
-        plug->beginEdit(kMidiClock); plug->setParamNormalized(kMidiClock, v); plug->performEdit(kMidiClock, v); plug->endEdit(kMidiClock);
-        return;
-    }
-    if (c->getValue() < 0.5f) return;               // kick buttons: act on press only
-    Eps16Engine &eng = plug->engine();
-    switch (tag) {
-    case kTagFloppy: choose_file(false); break;
-    case kTagEject: eng.eject_disk(); break;
-    case kTagScsi: choose_file(true); break;
-    case kTagScsiOff: eng.detach_scsi(); break;
-    case kTagReset: eng.power_reset(); break;
-    }
-}
+void Editor::valueChanged(CControl *) {}
 
 } // namespace Eps16Vst

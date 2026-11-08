@@ -58,36 +58,47 @@ bool Eps16Engine::boot(const std::string &resources, const std::string &user) {
     m->fdc.fast = true;                    // fast floppy transfers, as in the stand-alone program
     m->out_rate = fs;
     m->midi_out = [this](uint8_t b) { midi_out.push_back(b); };
-    // ROMs: inside the bundle, or in the user folder (<user>/roms or <user>)
-    const std::string dirs[3] = { resources, (fs::u8path(user) / "roms").u8string(), user };
+    // The files are where the stand-alone program finds them: its "roms" folder (the program
+    // records its folder in eps16.cfg as app_dir), the per-user folder, and last the bundle.
+    Settings st; st.load((fs::u8path(user) / "eps16.cfg").u8string());
+    std::vector<std::string> dirs;
+    if (!st.app_dir.empty()) { dirs.push_back((fs::u8path(st.app_dir) / "roms").u8string()); dirs.push_back(st.app_dir); }
+    dirs.push_back((fs::u8path(user) / "roms").u8string()); dirs.push_back(user);
+    if (!resources.empty()) dirs.push_back(resources);
+    app_dir = st.app_dir;
     std::string rom_dir;
     for (auto &d : dirs) if (m->load_rom_dir(d)) { rom_dir = d; break; }
     if (rom_dir.empty()) {
-        err = "ROM do EPS-16 Plus nao encontrada: copia eps16plus-u27.bin e eps16plus-u28.bin para " + (fs::u8path(user) / "roms").u8string();
+        err = "EPS-16 Plus ROM not found: put eps16plus-u27.bin and eps16plus-u28.bin in the emulator's roms folder or in " + (fs::u8path(user) / "roms").u8string();
         return ok = false;
     }
-    // the OS disk lives in the user folder (writable, shared with the stand-alone program)
+    // the OS disk: the same image the program uses (it is written to, as a floppy is)
     std::error_code ec;
-    fs::path os_user = fs::u8path(user) / "os130.img";
-    for (auto &d : dirs) if (copy_if_missing(fs::u8path(d) / "os130.img", os_user)) break;
-    if (!fs::exists(os_user, ec))                  // no os130.img: the first *.img found
-        for (auto &d : dirs) {
-            std::vector<fs::path> imgs;
-            for (auto &e : fs::directory_iterator(fs::u8path(d), ec)) {
-                std::string ext = e.path().extension().string();
-                for (auto &c : ext) c = (char)tolower((unsigned char)c);
-                if (ext == ".img" && e.is_regular_file(ec)) imgs.push_back(e.path());
-            }
-            std::sort(imgs.begin(), imgs.end());
-            if (!imgs.empty() && copy_if_missing(imgs[0], os_user)) break;
+    auto find_disk = [&](const std::string &dir) -> fs::path {
+        fs::path d = fs::u8path(dir);
+        if (fs::exists(d / "os130.img", ec)) return d / "os130.img";
+        std::vector<fs::path> imgs;
+        for (auto &e : fs::directory_iterator(d, ec)) {
+            std::string ext = e.path().extension().string();
+            for (auto &c : ext) c = (char)tolower((unsigned char)c);
+            if (ext == ".img" && e.is_regular_file(ec) && fs::file_size(e.path(), ec) <= 2 * 1024 * 1024) imgs.push_back(e.path());
         }
-    floppy = fs::exists(os_user, ec) ? os_user.u8string() : std::string();
+        std::sort(imgs.begin(), imgs.end());
+        return imgs.empty() ? fs::path() : imgs[0];
+    };
+    fs::path os;
+    for (auto &d : dirs) if (d != resources) { os = find_disk(d); if (!os.empty()) break; }
+    if (os.empty() && !resources.empty()) {          // only in the bundle: work on a copy in the user folder
+        fs::path b = find_disk(resources);
+        if (!b.empty() && copy_if_missing(b, fs::u8path(user) / b.filename())) os = fs::u8path(user) / b.filename();
+    }
+    floppy = os.empty() ? std::string() : os.u8string();
     if (!floppy.empty() && !m->fdc.load(floppy)) floppy.clear();
     m->analog[Eps16::AN_VOLUME] = 1000;
     apply_settings(*m, true);              // the stand-alone program's settings (eps16.cfg)
     m->reset();
     ok = true;
-    set_status(floppy.empty() ? "Sem disquete do OS: arrasta uma imagem para o painel" : "A arrancar o OS...");
+    set_status(floppy.empty() ? "No OS disk: drop a disk image on the panel" : "");
     return true;
 }
 
@@ -184,7 +195,7 @@ void Eps16Engine::analog(int ch, uint16_t v) {
 
 void Eps16Engine::save_floppy() {
     std::lock_guard<std::mutex> g(g_mx);
-    if (m && m->fdc.dirty && m->fdc.save()) set_status("Disquete gravada: " + m->fdc.path);
+    if (m && m->fdc.dirty && m->fdc.save()) set_status("Disk saved: " + m->fdc.path);
 }
 
 void Eps16Engine::insert_files(const std::vector<std::string> &files) {
@@ -192,8 +203,8 @@ void Eps16Engine::insert_files(const std::vector<std::string> &files) {
         std::string path, label, err = efe::make_disk_file(files, false, "eps16-", path, label);
         if (!err.empty()) { set_status(err); return; }
         if (a.fdc.dirty) a.fdc.save();
-        if (a.insert_disk(path)) { floppy = path; set_status("\"" + label + "\" na disquete: carrega em LOAD para o carregar"); }
-        else set_status("Nao consegui abrir " + path);
+        if (a.insert_disk(path)) { floppy = path; set_status("\"" + label + "\" is on the disk in the drive: press LOAD to load it"); }
+        else set_status("Cannot open " + path);
     });
 }
 
@@ -210,20 +221,20 @@ void Eps16Engine::insert_disk(const std::string &path) {
                 if (scsi_list.size() <= (size_t)i) scsi_list.resize(i + 1);
                 scsi_list[i] = path;
             }
-            set_status(r.empty() ? "Nao consegui ligar " + path : r + "  (Power ~1 s para o OS o ver)");
+            set_status(r.empty() ? "Cannot attach " + path : r + "  (hold Power ~1 s so that the OS sees it)");
             return;
         }
         if (a.fdc.dirty) a.fdc.save();
-        if (a.insert_disk(path)) { floppy = path; set_status("Disquete: " + path); }
-        else set_status("Nao consegui abrir " + path);
+        if (a.insert_disk(path)) { floppy = path; set_status("Disk: " + path); }
+        else set_status("Cannot open " + path);
     });
 }
 
 void Eps16Engine::eject_disk() {
     push(cmd_mx, cmds, [this](Eps16 &a) {
-        if (!a.fdc.has_disk()) { set_status("Drive vazio"); return; }
+        if (!a.fdc.has_disk()) { set_status("The drive is empty"); return; }
         if (a.fdc.dirty) a.fdc.save();
-        a.eject_disk(); floppy.clear(); set_status("Disquete ejetada");
+        a.eject_disk(); floppy.clear(); set_status("Disk ejected");
     });
 }
 
@@ -231,11 +242,11 @@ void Eps16Engine::attach_scsi(const std::string &path) {
     push(cmd_mx, cmds, [this, path](Eps16 &a) {
         int id = -1;
         for (int i = 0; i < 8 && id < 0; i++) if (i != 3 && !a.scsi.dev[i]) id = i;
-        if (id < 0) { set_status("SCSI: nao ha IDs livres"); return; }
-        if (!a.scsi.attach(id, path, ScsiDevice::HD)) { set_status("Nao consegui abrir " + path); return; }
+        if (id < 0) { set_status("SCSI: no free ID"); return; }
+        if (!a.scsi.attach(id, path, ScsiDevice::HD)) { set_status("Cannot open " + path); return; }
         if (scsi_list.size() <= (size_t)id) scsi_list.resize(id + 1);
         scsi_list[id] = path;
-        set_status("SCSI ID " + std::to_string(id) + ": " + path + "  (Power ~1 s para o OS o ver)");
+        set_status("SCSI ID " + std::to_string(id) + ": " + path + "  (hold Power ~1 s so that the OS sees it)");
     });
 }
 
@@ -243,7 +254,9 @@ std::string Eps16Engine::scsi_folder_path() const {
     std::error_code ec;
     if (!scsi_folder.empty() && fs::is_directory(fs::u8path(scsi_folder), ec)) return scsi_folder;
     fs::path d = fs::u8path(user_dir) / "scsi";
-    return fs::is_directory(d, ec) ? d.u8string() : std::string();
+    if (fs::is_directory(d, ec)) return d.u8string();
+    if (!app_dir.empty() && fs::is_directory(fs::u8path(app_dir) / "scsi", ec)) return (fs::u8path(app_dir) / "scsi").u8string();
+    return std::string();
 }
 
 std::string Eps16Engine::attach_scsi_folder(Eps16 &a) {
@@ -274,7 +287,7 @@ void Eps16Engine::apply_settings(Eps16 &a, bool first) {
     if (first || st.scsi_dir != scsi_folder) {
         scsi_folder = st.scsi_dir;
         std::string d = attach_scsi_folder(a);
-        if (!first) set_status(d.empty() ? "Sem pasta SCSI" : "Pasta SCSI da app: " + d + "  (Reset para o EPS ver as drives)");
+        if (!first) set_status(d.empty() ? "No SCSI folder" : "SCSI folder (from the app): " + d + "  (hold Power ~1 s so that the OS sees the drives)");
     }
 }
 
@@ -286,7 +299,7 @@ void Eps16Engine::check_settings() {
 void Eps16Engine::detach_scsi() {
     push(cmd_mx, cmds, [this](Eps16 &a) {
         for (int i = 0; i < 8; i++) a.scsi.dev[i].reset();
-        scsi_list.clear(); set_status("Discos SCSI desligados");
+        scsi_list.clear(); set_status("SCSI disks detached");
     });
 }
 

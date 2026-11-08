@@ -35,7 +35,7 @@ tresult PLUGIN_API Plugin::initialize(FUnknown *context) {
     if (r != kResultOk) return r;
 
     // inputs: stereo audio for sampling (side chain); MIDI
-    addAudioInput(STR16("Entrada (sampling)"), SpeakerArr::kStereo, kAux, BusInfo::kDefaultActive);
+    addAudioInput(STR16("Sampling input"), SpeakerArr::kStereo, kAux, BusInfo::kDefaultActive);
     addEventInput(STR16("MIDI In"), 16);
     // outputs: Main + the OEX-6 Output Expander (AUX 1, BUS 2, BUS 3, off until the host activates them)
     addAudioOutput(STR16("Main"), SpeakerArr::kStereo, kMain, BusInfo::kDefaultActive);
@@ -45,7 +45,6 @@ tresult PLUGIN_API Plugin::initialize(FUnknown *context) {
     addEventOutput(STR16("MIDI Out"), 16);
 
     parameters.addParameter(STR16("Volume"), STR16("%"), 0, volume, ParameterInfo::kCanAutomate, kVolume);
-    parameters.addParameter(STR16("Relogio MIDI do host"), nullptr, 1, 0, ParameterInfo::kCanAutomate, kMidiClock);
     for (int ch = 0; ch < 16; ch++)
         for (int n = 0; n < kMidiPerChannel; n++) {
             char name[48];
@@ -102,8 +101,6 @@ void Plugin::collect_midi(ProcessData &data) {
             int32 off; ParamValue v;
             if (id == kVolume && n > 0 && q->getPoint(n - 1, off, v) == kResultOk) {
                 volume = v; eng.analog(Eps16::AN_VOLUME, (uint16_t)(v * 1023));
-            } else if (id == kMidiClock && n > 0 && q->getPoint(n - 1, off, v) == kResultOk) {
-                clock_on = v > 0.5;
             } else if (id >= kMidiBase && id < kMidiBase + 16 * kMidiPerChannel) {
                 int idx = (int)(id - kMidiBase), ch = idx / kMidiPerChannel, c = idx % kMidiPerChannel;
                 for (int32 p = 0; p < n; p++) {
@@ -153,32 +150,6 @@ void Plugin::collect_midi(ProcessData &data) {
     }
 }
 
-// host transport -> MIDI clock / start / stop / song position (only when the parameter is on)
-void Plugin::midi_clock(ProcessData &data) {
-    ProcessContext *ctx = data.processContext;
-    bool playing = clock_on && ctx && (ctx->state & ProcessContext::kPlaying) &&
-                   (ctx->state & ProcessContext::kTempoValid) && (ctx->state & ProcessContext::kProjectTimeMusicValid);
-    if (!playing) {
-        if (was_playing) { midi.push_back(EngineMidi{ 0, {0xFC, 0, 0}, 1 }); was_playing = false; }
-        return;
-    }
-    double qpos = ctx->projectTimeMusic;                       // quarters at the start of the block
-    double q_per_sample = ctx->tempo / 60.0 / processSetup.sampleRate;
-    if (!was_playing || std::fabs(qpos - next_tick) > 1.0 / 12) {     // (re)start or jump
-        int sixteenths = (int)std::floor(std::max(0.0, qpos) * 4.0);
-        EngineMidi spp{ 0, {0xF2, (uint8_t)(sixteenths & 127), (uint8_t)((sixteenths >> 7) & 127)}, 3 };
-        midi.push_back(spp);
-        midi.push_back(EngineMidi{ 0, {(uint8_t)(sixteenths == 0 ? 0xFA : 0xFB), 0, 0}, 1 });
-        next_tick = std::ceil(qpos * 24.0 - 1e-9) / 24.0;
-        was_playing = true;
-    }
-    double end = qpos + q_per_sample * data.numSamples;
-    while (next_tick < end) {
-        int off = (int)std::floor((next_tick - qpos) / q_per_sample);
-        midi.push_back(EngineMidi{ std::max(0, off), {0xF8, 0, 0}, 1 });
-        next_tick += 1.0 / 24.0;
-    }
-}
 
 // ------------------------------------------------------------------ MIDI out
 void Plugin::send_midi_out(ProcessData &data) {
@@ -234,7 +205,6 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
     midi.clear();
     collect_midi(data);
     if (data.numSamples <= 0) return kResultOk;
-    midi_clock(data);
     std::stable_sort(midi.begin(), midi.end(), [](const EngineMidi &a, const EngineMidi &b) { return a.offset < b.offset; });
 
     float *out[8] = {};
@@ -264,7 +234,7 @@ tresult PLUGIN_API Plugin::getState(IBStream *state) {
     s.writeInt32(kStateMagic);
     s.writeInt32(1);
     s.writeDouble(volume);
-    s.writeInt32(clock_on ? 1 : 0);
+    s.writeInt32(0);                                // (was: host MIDI clock)
     s.writeStr8(eng.floppy_path().c_str());
     auto sc = eng.scsi_paths();
     s.writeInt32((int32)sc.size());
@@ -285,9 +255,8 @@ tresult PLUGIN_API Plugin::setState(IBStream *state) {
         char8 *p = s.readStr8(); scsi.push_back(p ? std::string(p) : std::string()); delete[] p;
     }
     // (versions 2-3 also stored a SCSI folder and a MIDI channel: these now come from the app)
-    volume = vol; clock_on = clk != 0;
+    volume = vol; (void)clk;
     setParamNormalized(kVolume, volume);
-    setParamNormalized(kMidiClock, clock_on ? 1 : 0);
     eng.analog(Eps16::AN_VOLUME, (uint16_t)(volume * 1023));
     eng.restore(floppy, scsi);
     return kResultOk;
