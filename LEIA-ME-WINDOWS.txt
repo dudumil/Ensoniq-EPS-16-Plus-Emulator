@@ -123,6 +123,8 @@ PASTA DAS DRIVES SCSI
    Na pasta: HD0.img = disco no ID 0, CD5.iso = CD-ROM no ID 5, etc.
    Sem escolha, usa a pasta "scsi" ao lado do eps16.exe. Depois de mudar,
    File > Reset para o OS ver as drives novas.
+   Disco novo: escolhe "New drive size" (50 MB a 2 GB) e carrega em
+   "New drive  Create HDn.img". Fica ja formatado, no primeiro ID livre.
 
 PLUG-IN VST3 (pasta VST3)
    1. Copia a pasta VST3\EPS16.vst3 inteira para

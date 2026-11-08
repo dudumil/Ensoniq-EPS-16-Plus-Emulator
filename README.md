@@ -114,6 +114,10 @@ Escolhe a pasta em **View → Options → SCSI DRIVES → Drive images folder �
 `eps16.cfg`, `scsi_dir=`), ou dá-a com `--scsi-dir`. Sem escolha, usa a pasta `scsi` ao lado do programa.
 Depois de mudar de pasta, reinicia o EPS (File → Reset) para o OS ver as drives novas.
 
+**Criar um disco novo:** em **SCSI DRIVES**, escolhe **New drive size** (50 MB a 2 GB) e carrega em
+**New drive → Create HDn.img**: fica na pasta com o primeiro ID SCSI livre, já formatado como o FORMAT
+SCSI DRIVE do EPS o deixa (não é preciso formatar). Depois File → Reset para o OS o ver.
+
 ### Plug-in VST3 (`EPS16.vst3`)
 
 - Copia a pasta `EPS16.vst3` para `C:\Program Files\Common Files\VST3` e as ROMs e o `os130.img` para

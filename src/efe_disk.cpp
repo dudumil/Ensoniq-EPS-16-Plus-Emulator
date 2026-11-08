@@ -129,4 +129,49 @@ std::string make_disk_file(const std::vector<std::string> &files, bool allow_hd,
     return "";
 }
 
+std::string make_scsi_image(const std::string &path, unsigned mb, bool asr, const std::string &label) {
+    if (mb < 50 || mb > 2048) return "The size must be between 50 MB and 2 GB";
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path p = fs::u8path(path);
+    if (fs::exists(p, ec)) return p.filename().u8string() + " already exists";
+    const uint32_t n = mb * 2048u;                       // 512-byte blocks
+    const uint32_t nfat = (n + FAT_PER_BLOCK - 1) / FAT_PER_BLOCK;
+    const uint32_t nsys = 5 + nfat;                      // blocks 0-4 + the FAT
+    // the EPS-16 Plus stores the last block number as the size (and leaves that block out),
+    // the ASR-10 the number of blocks
+    const uint32_t size_field = asr ? n : n - 1;
+    const uint32_t free_blocks = size_field - nsys;
+
+    std::vector<uint8_t> head((size_t)nsys * BLOCK, 0);
+    uint8_t *d = head.data();
+    uint8_t *id = d + BLOCK;                             // block 1: device ID
+    id[0x02] = 0x02;
+    put32(id + 0x0a, BLOCK);
+    put32(id + 0x0e, size_field);
+    id[0x1e] = 0xff;
+    for (int i = 0; i < 7; i++) id[0x1f + i] = i < (int)label.size() ? (uint8_t)toupper((unsigned char)label[i]) : ' ';
+    id[0x26] = 'I'; id[0x27] = 'D';
+    uint8_t *os = d + 2 * BLOCK;                         // block 2: OS block, no OS on the disk
+    put32(os, free_blocks);
+    os[0x1c] = 'O'; os[0x1d] = 'S';
+    if (asr) memcpy(id + 0x28, os, 0x28);                // as the ASR-10 writes it
+    else { put32(os + 0x1e, size_field); put32(os + 0x22, BLOCK); }
+    d[4 * BLOCK + 0x1fe] = 'D'; d[4 * BLOCK + 0x1ff] = 'R';   // empty root directory
+    for (uint32_t k = 0; k < nfat; k++) { d[(5 + k) * BLOCK + 0x1fe] = 'F'; d[(5 + k) * BLOCK + 0x1ff] = 'B'; }
+    for (uint32_t b = 0; b < nsys; b++) {                // the system blocks are in use
+        uint8_t *e = d + (5 + b / FAT_PER_BLOCK) * BLOCK + (b % FAT_PER_BLOCK) * 3;
+        e[0] = 0; e[1] = 0; e[2] = 1;
+    }
+    {
+        std::ofstream o(p, std::ios::binary);
+        if (!o) return "Cannot create " + p.u8string();
+        o.write((const char *)head.data(), head.size());
+        if (!o) { o.close(); fs::remove(p, ec); return "Cannot write " + p.u8string(); }
+    }
+    fs::resize_file(p, (uintmax_t)n * BLOCK, ec);        // the rest reads as zeros
+    if (ec) { fs::remove(p, ec); return "Not enough space for " + std::to_string(mb) + " MB"; }
+    return "";
+}
+
 }

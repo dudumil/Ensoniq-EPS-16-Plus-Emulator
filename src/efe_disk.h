@@ -21,4 +21,11 @@ std::string make_disk(const std::vector<std::string> &files, bool allow_hd,
 std::string make_disk_file(const std::vector<std::string> &files, bool allow_hd,
                            const std::string &prefix, std::string &path, std::string &label);
 
+
+// Creates a blank SCSI hard disk image of `mb` megabytes, formatted the way FORMAT SCSI DRIVE does
+// it (device ID block, empty root directory, FAT), so it can be used without formatting.
+// asr = the ASR-10 layout, otherwise the EPS-16 Plus one (they record the capacity differently).
+// Refuses to overwrite an existing file. Returns "" on success, else an error message.
+std::string make_scsi_image(const std::string &path, unsigned mb, bool asr, const std::string &label);
+
 }

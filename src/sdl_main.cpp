@@ -719,7 +719,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> midi_ins, midi_outs;
     NativeMenu nmenu;
     std::string opt_msg, scsi_note;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_N };
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -731,6 +731,55 @@ int main(int argc, char **argv) {
         return AudioDevice{};
     };
     // rebuild the option rows from `edit`
+    // creating a formatted SCSI hard disk image (50 MB - 2 GB) from the options page
+    const std::vector<int> NEW_SIZES = { 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 750, 800, 900,
+                                         1000, 1024, 1200, 1250, 1400, 1500, 1600, 1750, 1800, 2000, 2048 };
+    int new_mb = 500;
+    auto new_drive_folder = [&]() -> std::string {   // the folder chosen in the page, or the default one
+        std::error_code ec;
+        if (!edit.scsi_dir.empty() && std::filesystem::is_directory(std::filesystem::u8path(edit.scsi_dir), ec)) return edit.scsi_dir;
+        return default_scsi_dir();
+    };
+    auto new_drive_id = [&]() -> int {               // first SCSI ID with no image in the folder and no device
+        namespace fs = std::filesystem;
+        std::string dir = new_drive_folder();
+        bool used[8] = {};
+        used[3] = true;                              // the EPS itself
+        std::error_code ec;
+        if (!dir.empty())
+            for (auto &e : fs::directory_iterator(fs::u8path(dir), ec)) {
+                std::string n = e.path().filename().u8string();
+                if (n.size() >= 3 && isdigit((unsigned char)n[2])) {
+                    char t0 = (char)toupper((unsigned char)n[0]), t1 = (char)toupper((unsigned char)n[1]);
+                    if ((t0 == 'H' && t1 == 'D') || (t0 == 'C' && t1 == 'D') || (t0 == 'R' && t1 == 'E') || (t0 == 'M' && t1 == 'O'))
+                        used[(n[2] - '0') & 7] = true;
+                }
+            }
+        for (int i = 0; i < 7; i++) if (!used[i] && !m.scsi.dev[i]) return i;
+        return -1;
+    };
+    auto create_drive = [&]() {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        std::string dir = new_drive_folder();
+        if (dir.empty()) {                           // no folder yet: make "scsi" in the settings folder
+            dir = (pref_dir.empty() ? std::string("") : pref_dir) + "scsi";
+            fs::create_directories(fs::u8path(dir), ec);
+            if (ec) { opt_msg = "Cannot create the folder " + dir; return; }
+        }
+        int id = new_drive_id();
+        if (id < 0) { opt_msg = "No free SCSI ID (0-6) in " + dir; return; }
+        std::string path = (fs::u8path(dir) / ("HD" + std::to_string(id) + ".img")).u8string();
+        std::string err = efe::make_scsi_image(path, (unsigned)new_mb, false, "DISK00" + std::to_string(id));
+        if (!err.empty()) { opt_msg = err; return; }
+        {
+            std::lock_guard<std::mutex> g(mmx);
+            m.scsi.attach(id, path, ScsiDevice::HD);
+        }
+        opt_msg.clear();
+        scsi_note = "Created " + path + " (" + std::to_string(new_mb) + " MB, SCSI ID " + std::to_string(id) +
+                    "). Reset the EPS to use it";
+    };
     auto build_rows = [&]() {
         rows.assign(O_N, OptRow{});
         auto &r = rows;
@@ -800,6 +849,15 @@ int main(int argc, char **argv) {
         r[O_SCSI].items.push_back("\"scsi\" next to the program");
         if (!edit.scsi_dir.empty()) { r[O_SCSI].items.push_back(edit.scsi_dir); r[O_SCSI].sel = 1; }
         r[O_SCSI].items.push_back("Choose folder...");
+        // a new hard disk image, already formatted, in that folder (on the first free SCSI ID)
+        r[O_NEWSIZE].label = "New drive size";
+        for (int mb : NEW_SIZES) {
+            r[O_NEWSIZE].items.push_back(mb % 1024 == 0 ? std::to_string(mb / 1024) + " GB" : std::to_string(mb) + " MB");
+            if (mb == new_mb) r[O_NEWSIZE].sel = (int)r[O_NEWSIZE].items.size() - 1;
+        }
+        r[O_NEWMAKE].label = "New drive";
+        int id = new_drive_id();
+        r[O_NEWMAKE].items.push_back(id < 0 ? "No free SCSI ID in the folder" : "Create HD" + std::to_string(id) + ".img (formatted)");
     };
     // a row changed: write it back into `edit` and rebuild the dependent rows
     auto row_changed = [&](int row) {
@@ -820,6 +878,7 @@ int main(int argc, char **argv) {
         case O_MIDIMAP: edit.midi_remap = x.sel == 0; break;
         case O_MIDIIN: edit.midi_in = x.sel == 0 ? "" : v; edit.midi_in_set = true; break;
         case O_MIDIOUT: edit.midi_out = x.sel == 0 ? "" : v; break;
+        case O_NEWSIZE: new_mb = NEW_SIZES[std::clamp(x.sel, 0, (int)NEW_SIZES.size() - 1)]; break;
         case O_SCSI:
             if (x.sel == 0) edit.scsi_dir.clear();
             else if (x.sel == (int)x.items.size() - 1) {      // "Choose folder..."
@@ -864,7 +923,7 @@ int main(int argc, char **argv) {
         cfg.save();
     };
     // layout of the options page: a faceplate-like panel with two columns of drop-down fields
-    const int OX = 110, OY = 52, OW = 1180, OH = 540;
+    const int OX = 110, OY = 52, OW = 1180, OH = 554;
     const int ROW_H = 30, Y0 = OY + 74, LABEL_W = 214, FIELD_W = 330, COL_X[2] = { OX + 36, OX + 616 };
     const SDL_Rect btn_apply{OX + OW - 214, OY + OH - 46, 70, 26}, btn_close{OX + OW - 112, OY + OH - 46, 70, 26};
     struct Sect { const char *title; int col, y, first, last; };
@@ -872,8 +931,8 @@ int main(int argc, char **argv) {
     const Sect sects[4] = {
         { "AUDIO OUTPUTS", 0, Y0, O_API, O_B3MAIN },
         { "SAMPLER INPUT", 1, Y0, O_IN, O_INL },
-        { "MIDI", 1, Y0 + ROW_H * 3 + 18, O_MIDIIN, O_MIDIMAP },
-        { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 36, O_SCSI, O_SCSI } };
+        { "MIDI", 1, Y0 + ROW_H * 3 + 6, O_MIDIIN, O_MIDIMAP },
+        { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_NEWMAKE } };
     auto field_rect = [&](int row) -> SDL_Rect {
         for (const Sect &sc : sects)
             if (row >= sc.first && row <= sc.last)
@@ -890,6 +949,7 @@ int main(int argc, char **argv) {
         return r;
     };
     auto open_drop = [&](int row) {
+        if (row == O_NEWMAKE) { create_drive(); build_rows(); return; }   // an action, not a list
         if (row < 0 || rows[row].items.empty()) return;
         drop_row = row; drop_hover = rows[row].sel;
         int n = (int)rows[row].items.size();
@@ -903,7 +963,7 @@ int main(int argc, char **argv) {
     };
     // keyboard order of the fields
     const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN,
-                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI };
+                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;
     // window layout: keyboard strip shown or hidden (it is always there while the options are
@@ -1236,6 +1296,7 @@ int main(int argc, char **argv) {
                 if (ab.first >= 0 && emu_t >= ab.first) {
                     if (ab.second == 1000) want_options = true;
                     else if (ab.second == 1003) { opt_cur = O_RATE; open_drop(opt_cur); }      // test: open a list
+                    else if (ab.second == 1004) { lk.unlock(); open_drop(O_NEWMAKE); lk.lock(); }   // test: create a drive
                     else if (ab.second == 1002) want_kb_toggle = true;                       // test: keyboard strip
                     else if (ab.second == 1001) want_apply = true;                          // test: apply options
                     else if (ab.second >= 2000) press_key(ab.second - 2000, true, 100);   // test: key on
@@ -1391,8 +1452,10 @@ int main(int argc, char **argv) {
                     fill(f.x, f.y, f.w, f.h, 0x030405);
                     std::string v = rows[row].items.empty() ? "-" : rows[row].items[rows[row].sel];
                     ui.draw(UiText::BODY, ui.fit(UiText::BODY, v, f.w - 40.0f), f.x + 10.0f, f.y + 3.0f, rows[row].items.empty() ? VFD_DIM : VFD);
-                    fill(f.x + f.w - 26, f.y + 4, 1, f.h - 8, 0x1b1c1e);
-                    tri_down(f.x + f.w - 13.0f, f.y + f.h / 2.0f, 5, drop_row == row ? VFD : LEG);
+                    if (row != O_NEWMAKE) {                  // (the "New drive" field is a button)
+                        fill(f.x + f.w - 26, f.y + 4, 1, f.h - 8, 0x1b1c1e);
+                        tri_down(f.x + f.w - 13.0f, f.y + f.h / 2.0f, 5, drop_row == row ? VFD : LEG);
+                    }
                 }
             }
             // status
