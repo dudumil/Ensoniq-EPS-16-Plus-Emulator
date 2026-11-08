@@ -164,6 +164,7 @@ int main(int argc, char **argv) {
     if (getenv("EPS_DUMP_ESP")) { m.esp.list_program(stdout); printf("esp halted=%d\n", m.esp.halted()); }
     if (const char *f = getenv("EPS_DUMP_WAVE")) { FILE *o = fopen(f, "wb"); fwrite(m.wave.data(), 2, m.wave.size(), o); fclose(o); }
     if (const char *f = getenv("EPS_DUMP_RAM")) { FILE *o = fopen(f, "wb"); fwrite(m.ram.data(), 1, m.ram.size(), o); fclose(o); }
+    if (getenv("EPS_SAVE_DISK") && m.fdc.dirty) m.fdc.save();   // write the floppy back
     if (!wav.empty()) wav_write(wav.c_str(), out, 44100);
     return 0;
 }
