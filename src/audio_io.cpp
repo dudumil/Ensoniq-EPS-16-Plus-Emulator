@@ -151,7 +151,7 @@ bool AudioIO::open(const AudioSetup &s, Render render, Capture capture, std::str
             cw.callback = sdl_in_cb; cw.userdata = &d->capture;
             d->sdl_in = SDL_OpenAudioDevice(s.in_dev == "*" ? nullptr : s.in_dev.c_str(), 1, &cw, &ch, 0);   // same rate as the output
             if (d->sdl_in) in_ch_ = d->in_ch = 2;
-            else err = std::string("entrada: ") + SDL_GetError();
+            else err = std::string("input: ") + SDL_GetError();
         }
         SDL_PauseAudioDevice(d->sdl_out, 0);
         if (d->sdl_in) SDL_PauseAudioDevice(d->sdl_in, 0);
@@ -162,7 +162,7 @@ bool AudioIO::open(const AudioSetup &s, Render render, Capture capture, std::str
 
 #ifdef ASR_WITH_RTAUDIO
     RtAudio::Api a = RtAudio::getCompiledApiByName(api);
-    if (a == RtAudio::UNSPECIFIED) { err = "driver de audio desconhecido: " + api; return false; }
+    if (a == RtAudio::UNSPECIFIED) { err = "unknown audio driver: " + api; return false; }
     auto make = [&](std::unique_ptr<RtAudio> &p) {
         p.reset(new RtAudio(a, [this](RtAudioErrorType t, const std::string &m) {
             if (t != RTAUDIO_WARNING) d->last_error = m;
@@ -190,8 +190,8 @@ bool AudioIO::open(const AudioSetup &s, Render render, Capture capture, std::str
             if (info.outputChannels > 0) { oinfo = info; have_out = true; break; }
         }
     }
-    if (!have_out) { err = "dispositivo de saida nao encontrado: " + (s.out_dev.empty() ? std::string("(predefinido)") : s.out_dev); close(); return false; }
-    if (!s.in_dev.empty() && !have_in) err = "dispositivo de entrada nao encontrado: " + s.in_dev;
+    if (!have_out) { err = "output device not found: " + (s.out_dev.empty() ? std::string("(default)") : s.out_dev); close(); return false; }
+    if (!s.in_dev.empty() && !have_in) err = "input device not found: " + s.in_dev;
 
     unsigned rate = s.rate;
     if (!rate) rate = oinfo.preferredSampleRate ? oinfo.preferredSampleRate : oinfo.currentSampleRate ? oinfo.currentSampleRate : 48000;
@@ -207,7 +207,7 @@ bool AudioIO::open(const AudioSetup &s, Render render, Capture capture, std::str
     }
     d->duplex = have_in && iinfo.ID == oinfo.ID;
     if (have_in && !d->duplex && a == RtAudio::WINDOWS_ASIO) {
-        err = "com ASIO a entrada tem de ser o mesmo dispositivo da saida";
+        err = "with ASIO the input must be the same device as the output";
         have_in = false;
     }
     RtAudio::StreamOptions opt;
@@ -217,7 +217,7 @@ bool AudioIO::open(const AudioSetup &s, Render render, Capture capture, std::str
     d->out_ch = (int)op.nChannels;
     d->in_ch = d->duplex ? (int)ip.nChannels : 0;
     if (d->rt_out->openStream(&op, d->duplex ? &ip : nullptr, RTAUDIO_FLOAT32, rate, &frames, rt_cb, d.get(), &opt) != RTAUDIO_NO_ERROR) {
-        err = d->last_error.empty() ? std::string("nao consegui abrir a saida de audio") : d->last_error;
+        err = d->last_error.empty() ? std::string("cannot open the audio output") : d->last_error;
         close(); return false;
     }
     rate_ = d->rt_out->getStreamSampleRate(); if (!rate_) rate_ = rate;
@@ -228,16 +228,16 @@ bool AudioIO::open(const AudioSetup &s, Render render, Capture capture, std::str
         RtAudio::StreamOptions o2 = opt; o2.streamName = "ASR-10 in";
         d->in_ch = (int)ip.nChannels;
         if (d->rt_in->openStream(nullptr, &ip, RTAUDIO_FLOAT32, rate_, &f2, rt_in_cb, d.get(), &o2) != RTAUDIO_NO_ERROR) {
-            err = "entrada: " + d->last_error;
+            err = "input: " + d->last_error;
             d->rt_in.reset(); d->in_ch = 0;
         } else in_ch_ = d->in_ch;
     }
     if (d->rt_out->startStream() != RTAUDIO_NO_ERROR) { err = d->last_error; close(); return false; }
-    if (d->rt_in && d->rt_in->startStream() != RTAUDIO_NO_ERROR) { err = "entrada: " + d->last_error; d->rt_in->closeStream(); d->rt_in.reset(); in_ch_ = d->in_ch = 0; }
+    if (d->rt_in && d->rt_in->startStream() != RTAUDIO_NO_ERROR) { err = "input: " + d->last_error; d->rt_in->closeStream(); d->rt_in.reset(); in_ch_ = d->in_ch = 0; }
     long lat = d->rt_out->getStreamLatency();
     char b[300];
     snprintf(b, sizeof b, "%s: %s, %u Hz, buffer %u (%.1f ms)%s", RtAudio::getApiDisplayName(a).c_str(), oinfo.name.c_str(),
-             rate_, buffer_, 1000.0 * (lat > 0 ? lat : buffer_) / rate_, in_ch_ ? ", com entrada" : "");
+             rate_, buffer_, 1000.0 * (lat > 0 ? lat : buffer_) / rate_, in_ch_ ? ", with input" : "");
     desc_ = b;
     return true;
 #else

@@ -511,7 +511,7 @@ int main(int argc, char **argv) {
         for (auto &a : apis) {
             printf("[%s] %s\n", a.id.c_str(), a.name.c_str());
             for (auto &dv : devices_of(a.id))
-                printf("    %s  (saidas %d, entradas %d%s)\n", dv.name.c_str(), dv.outputs, dv.inputs, dv.default_out ? ", predefinido" : "");
+                printf("    %s  (outputs %d, inputs %d%s)\n", dv.name.c_str(), dv.outputs, dv.inputs, dv.default_out ? ", default" : "");
         }
         return 0;
     }

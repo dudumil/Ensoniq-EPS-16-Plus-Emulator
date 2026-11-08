@@ -64,7 +64,7 @@ bool Settings::save() const {
     fprintf(f, "# 1 = MIDI In channel messages are sent to keyboard_channel\nmidi_in_to_keyboard_channel=%d\n", midi_remap ? 1 : 0);
     fprintf(f, "# 0 = BUS 2/3 only on the OEX-6 outputs, not in the main mix\nbus2_to_main=%d\nbus3_to_main=%d\n", bus_main[0] ? 1 : 0, bus_main[1] ? 1 : 0);
     fprintf(f, "# OEX-6 outputs: aux1_out = AUX 1, aux2_out = BUS 2, aux3_out = BUS 3\n");
-    fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / TECLADO button)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
+    fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / View > Show Keyboard)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
     fprintf(f, "# folder of the SCSI drive images (HD0.img, CD5.iso ...); empty = \"scsi\" next to the program\nscsi_dir=%s\n", scsi_dir.c_str());
     fprintf(f, "# folder of the program (written by it; the VST3 plug-in looks for the ROMs and disks there)\napp_dir=%s\n", app_dir.c_str());
     fclose(f);

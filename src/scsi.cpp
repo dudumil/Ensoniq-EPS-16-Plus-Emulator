@@ -34,10 +34,10 @@ std::unique_ptr<ScsiDevice> ScsiDevice::open(const std::string &path, Type type,
 ScsiDevice::~ScsiDevice() { if (f) fclose(f); }
 
 std::string ScsiDevice::describe() const {
-    const char *t = type == CD ? "CD-ROM" : type == REMOVABLE ? "removivel" : "disco";
+    const char *t = type == CD ? "CD-ROM" : type == REMOVABLE ? "removable" : "disk";
     char b[512];
-    snprintf(b, sizeof b, "%s %s (%.1f MB, blocos de %u%s)", t, path.c_str(), bytes / 1048576.0, block_size,
-             readonly ? ", so leitura" : "");
+    snprintf(b, sizeof b, "%s %s (%.1f MB, %u-byte blocks%s)", t, path.c_str(), bytes / 1048576.0, block_size,
+             readonly ? ", read-only" : "");
     return b;
 }
 
@@ -401,11 +401,11 @@ std::string Wd33c93::attach_file(const std::string &path, int host_id) {
         if (ec || sz <= 2 * 1024 * 1024) return "";
         id = -1;
         for (int i = 0; i < 8 && id < 0; i++) if (i != host_id && !dev[i]) id = i;
-        if (id < 0) return "SCSI: nao ha IDs livres";
+        if (id < 0) return "SCSI: no free IDs";
         t = ScsiDevice::HD;
     }
     if (id == host_id) return "ID " + std::to_string(id) + " e o proprio ASR-10";
-    if (!attach(id, path, t, bs)) return "nao consegui abrir " + path;
+    if (!attach(id, path, t, bs)) return "cannot open " + path;
     return "SCSI ID " + std::to_string(id) + ": " + dev[id]->describe();
 }
 
@@ -415,7 +415,7 @@ std::string Wd33c93::summary() const {
         if (!s.empty()) s += "  ";
         s += "ID" + std::to_string(i) + (dev[i]->type == ScsiDevice::CD ? ":CD" : ":HD");
     }
-    return s.empty() ? "sem dispositivos" : s;
+    return s.empty() ? "no devices" : s;
 }
 
 std::string Wd33c93::attach_dir(const std::string &dir, int host_id) {
@@ -431,8 +431,8 @@ std::string Wd33c93::attach_dir(const std::string &dir, int host_id) {
         if (id == host_id) { report += "ID " + std::to_string(id) + " e o proprio ASR-10, ignorado: " + p.u8string() + "\n"; continue; }
         if (dev[id]) { report += "ID " + std::to_string(id) + " ja ocupado, ignorado: " + p.u8string() + "\n"; continue; }
         if (attach(id, p.u8string(), t, bs)) report += "SCSI ID " + std::to_string(id) + ": " + dev[id]->describe() + "\n";
-        else report += "nao consegui abrir " + p.u8string() + "\n";
+        else report += "cannot open " + p.u8string() + "\n";
     }
-    if (ec) report += "nao consegui ler a pasta " + dir + "\n";
+    if (ec) report += "cannot read the folder " + dir + "\n";
     return report;
 }

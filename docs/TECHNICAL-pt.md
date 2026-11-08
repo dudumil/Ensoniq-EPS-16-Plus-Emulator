@@ -82,7 +82,7 @@ Não estão incluídos. Coloca na pasta `roms` ao lado do executável:
 
 ## Utilização
 
-Ver `LEIA-ME-WINDOWS.txt` para o guia completo. Resumo:
+Ver `README-WINDOWS.txt` para o guia completo. Resumo:
 - **Menus da janela:** File (abrir/ejetar/gravar disco, reset) e View (teclado do ecrã, Options).
 - Arrasta uma `.img` para a janela para a meter no drive (ou no SCSI, se tiver nome de disco SCSI).
 - Arrasta um ou mais instrumentos `.efe` para a janela: vão para uma disquete temporária que entra

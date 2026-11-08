@@ -9,9 +9,9 @@ build-*/
 __pycache__/
 # never commit ROMs, OS disks or disk images
 roms/*
-!roms/LEIA-ME.txt
+!roms/README.txt
 scsi/*
-!scsi/LEIA-ME.txt
+!scsi/README.txt
 *.img
 *.iso
 *.bin
