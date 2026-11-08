@@ -37,6 +37,7 @@ bool Settings::load(const std::string &file) {
         else if (k == "bus2_to_main") bus_main[0] = n != 0;
         else if (k == "bus3_to_main") bus_main[1] = n != 0;
         else if (k == "show_keyboard") show_keyboard = n != 0;
+        else if (k == "scsi_dir") scsi_dir = v;
     }
     fclose(f);
     if (in_left < 0) in_left = 0;
@@ -63,6 +64,7 @@ bool Settings::save() const {
     fprintf(f, "# 0 = BUS 2/3 only on the OEX-6 outputs, not in the main mix\nbus2_to_main=%d\nbus3_to_main=%d\n", bus_main[0] ? 1 : 0, bus_main[1] ? 1 : 0);
     fprintf(f, "# OEX-6 outputs: aux1_out = AUX 1, aux2_out = BUS 2, aux3_out = BUS 3\n");
     fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / TECLADO button)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
+    fprintf(f, "# folder of the SCSI drive images (HD0.img, CD5.iso ...); empty = \"scsi\" next to the program\nscsi_dir=%s\n", scsi_dir.c_str());
     fclose(f);
     return true;
 }

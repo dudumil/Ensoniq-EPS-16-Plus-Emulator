@@ -4,6 +4,7 @@
 #include <SDL_syswm.h>
 #include <windows.h>
 #include <commdlg.h>
+#include <shlobj.h>
 #include <vector>
 
 namespace { HWND hwnd_of(SDL_Window *w) {
@@ -61,11 +62,31 @@ std::string NativeMenu::open_disk_dialog() {
     return s;
 }
 
+std::string NativeMenu::choose_folder_dialog(const std::string &title) {
+    HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    std::wstring wt(title.begin(), title.end());
+    BROWSEINFOW bi{}; bi.hwndOwner = hwnd_of(win); bi.lpszTitle = wt.c_str();
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    std::string s;
+    if (PIDLIST_ABSOLUTE id = SHBrowseForFolderW(&bi)) {
+        wchar_t buf[MAX_PATH * 4] = L"";
+        if (SHGetPathFromIDListW(id, buf)) {
+            int n = WideCharToMultiByte(CP_UTF8, 0, buf, -1, nullptr, 0, nullptr, nullptr);
+            s.assign(n > 0 ? n - 1 : 0, '\0');
+            if (n > 1) WideCharToMultiByte(CP_UTF8, 0, buf, -1, &s[0], n, nullptr, nullptr);
+        }
+        CoTaskMemFree(id);
+    }
+    if (SUCCEEDED(co)) CoUninitialize();
+    return s;
+}
+
 #elif defined(__APPLE__)
 // implemented in mac/menu_mac.mm (pushes SDL user events)
 extern bool mac_menu_init(Uint32 event_type, bool kb);
 extern void mac_menu_set_keyboard(bool shown);
 extern std::string mac_open_disk_dialog();
+extern std::string mac_choose_folder_dialog(const std::string &title);
 static Uint32 g_menu_event = 0;
 
 bool NativeMenu::init(SDL_Window *w, bool kb) {
@@ -81,10 +102,31 @@ NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
 }
 void NativeMenu::set_keyboard(bool shown) { if (ok) mac_menu_set_keyboard(shown); }
 std::string NativeMenu::open_disk_dialog() { return mac_open_disk_dialog(); }
+std::string NativeMenu::choose_folder_dialog(const std::string &t) { return mac_choose_folder_dialog(t); }
 
 #else
+#include <cstdio>
+#include <sys/wait.h>
 bool NativeMenu::init(SDL_Window *w, bool) { win = w; return false; }
 NativeMenu::Cmd NativeMenu::command(const SDL_Event &) const { return NONE; }
 void NativeMenu::set_keyboard(bool) {}
 std::string NativeMenu::open_disk_dialog() { return ""; }
+std::string NativeMenu::choose_folder_dialog(const std::string &title) {
+    // Linux: zenity (GNOME) or kdialog (KDE) when installed
+    std::string t;
+    for (char c : title) if (c != '"' && c != '\\' && c != '$' && c != '`') t += c;
+    const std::string cmds[2] = { "zenity --file-selection --directory --title=\"" + t + "\" 2>/dev/null",
+                                  "kdialog --getexistingdirectory . --title \"" + t + "\" 2>/dev/null" };
+    for (const auto &c : cmds) {
+        FILE *f = popen(c.c_str(), "r");
+        if (!f) continue;
+        char buf[4096]; std::string out;
+        while (fgets(buf, sizeof buf, f)) out += buf;
+        int rc = pclose(f);
+        while (!out.empty() && (out.back() == '\n' || out.back() == '\r')) out.pop_back();
+        if (rc == 0 && !out.empty()) return out;
+        if (rc == 0 || (WIFEXITED(rc) && WEXITSTATUS(rc) == 1)) return "";   // cancelled
+    }
+    return "";
+}
 #endif

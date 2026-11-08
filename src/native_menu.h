@@ -13,6 +13,8 @@ public:
     void set_keyboard(bool shown);                   // check mark of View > Show Keyboard
     // file dialog for a disk image (Windows/macOS); "" if cancelled or not available
     std::string open_disk_dialog();
+    // folder picker (Windows/macOS; zenity or kdialog on Linux); "" if cancelled or not available
+    std::string choose_folder_dialog(const std::string &title);
     bool active() const { return ok; }
 private:
     SDL_Window *win = nullptr;

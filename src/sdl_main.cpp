@@ -314,6 +314,7 @@ int main(int argc, char **argv) {
     bool audio_in = false, list_audio = false; std::string audio_driver;
     std::string input_wav_path; double input_wav_at = -1;
     double shot_at = -1, quit_at = -1; std::string shot_path;   // testing aids
+    bool open_opts_at_start = false;
     std::vector<std::pair<double,int>> auto_buttons;
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
@@ -340,6 +341,7 @@ int main(int argc, char **argv) {
         else if (a == "--scale") scale = atof(next().c_str());
         else if (a == "--screenshot") { shot_at = atof(next().c_str()); shot_path = next(); }
         else if (a == "--quit-after") quit_at = atof(next().c_str());
+        else if (a == "--open-options") open_opts_at_start = true;
         else if (a == "--press") { double t; int i; if (sscanf(next().c_str(), "%lf:%d", &t, &i) == 2) auto_buttons.push_back({t, i}); }
         else if (a == "-h" || a == "--help") { usage(); return 0; }
         else if (a.size() > 4 && a[0] != '-') {      // bare image path: floppy, or SCSI if it is big
@@ -401,16 +403,20 @@ int main(int argc, char **argv) {
     // Without options a folder called "scsi" next to the program or in the working directory is used.
     m.scsi_fitted = !no_scsi;
     m.scsi.force_readonly = readonly;
-    if (scsi_dirs.empty() && scsi_specs.empty() && scsi_files.empty()) {
+    // the default folder: "scsi" in the working directory, in the settings folder or next to the program
+    auto default_scsi_dir = [&]() -> std::string {
         namespace fs = std::filesystem;
         std::error_code ec;
-        if (fs::is_directory("scsi", ec)) scsi_dirs.push_back("scsi");
-        else if (!pref_dir.empty() && fs::is_directory(pref_dir + "scsi", ec)) scsi_dirs.push_back(pref_dir + "scsi");
-        else if (char *bp = SDL_GetBasePath()) {
+        if (fs::is_directory("scsi", ec)) return "scsi";
+        if (!pref_dir.empty() && fs::is_directory(pref_dir + "scsi", ec)) return pref_dir + "scsi";
+        if (char *bp = SDL_GetBasePath()) {
             std::string d = std::string(bp) + "scsi"; SDL_free(bp);
-            if (fs::is_directory(d, ec)) scsi_dirs.push_back(d);
+            if (fs::is_directory(d, ec)) return d;
         }
-    }
+        return "";
+    };
+    // without SCSI options on the command line the folder chosen in the options is used (below)
+    const bool scsi_from_cfg = scsi_dirs.empty() && scsi_specs.empty() && scsi_files.empty();
     for (auto &d : scsi_dirs) printf("%s", m.scsi.attach_dir(d).c_str());
     for (auto &sp : scsi_specs) {
         int id = atoi(sp.c_str()); size_t c = sp.find(':');
@@ -434,6 +440,12 @@ int main(int argc, char **argv) {
     }
     if (!audio_driver.empty()) cfg.audio_api = audio_driver;
     if (audio_in) cfg.audio_in = "*";
+    auto scsi_dir_of = [&](const Settings &st) {
+        std::error_code ec;
+        if (!st.scsi_dir.empty() && std::filesystem::is_directory(std::filesystem::u8path(st.scsi_dir), ec)) return st.scsi_dir;
+        return default_scsi_dir();
+    };
+    if (scsi_from_cfg) { std::string d = scsi_dir_of(cfg); if (!d.empty()) printf("%s", m.scsi.attach_dir(d).c_str()); }
 
     // ---------------------------------------------------------------- MIDI
     MidiPorts midi;
@@ -705,7 +717,9 @@ int main(int argc, char **argv) {
     std::vector<OptRow> rows;
     Settings edit;                                  // settings being edited
     std::vector<std::string> midi_ins, midi_outs;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_N };
+    NativeMenu nmenu;
+    std::string opt_msg, scsi_note;
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -781,6 +795,11 @@ int main(int argc, char **argv) {
         r[O_MIDIMAP].label = "MIDI In → channel";
         r[O_MIDIMAP].items = { "the on-screen keyboard one", "as received (all)" };
         r[O_MIDIMAP].sel = edit.midi_remap ? 0 : 1;
+        // SCSI folder: default, the chosen folder (shown by its path), or pick another one
+        r[O_SCSI].label = "Drive images folder";
+        r[O_SCSI].items.push_back("\"scsi\" next to the program");
+        if (!edit.scsi_dir.empty()) { r[O_SCSI].items.push_back(edit.scsi_dir); r[O_SCSI].sel = 1; }
+        r[O_SCSI].items.push_back("Choose folder...");
     };
     // a row changed: write it back into `edit` and rebuild the dependent rows
     auto row_changed = [&](int row) {
@@ -801,6 +820,16 @@ int main(int argc, char **argv) {
         case O_MIDIMAP: edit.midi_remap = x.sel == 0; break;
         case O_MIDIIN: edit.midi_in = x.sel == 0 ? "" : v; edit.midi_in_set = true; break;
         case O_MIDIOUT: edit.midi_out = x.sel == 0 ? "" : v; break;
+        case O_SCSI:
+            if (x.sel == 0) edit.scsi_dir.clear();
+            else if (x.sel == (int)x.items.size() - 1) {      // "Choose folder..."
+                std::string d = nmenu.choose_folder_dialog("SCSI drive images folder (HD0.img, CD5.iso ...)");
+                if (!d.empty()) edit.scsi_dir = d;
+#if !defined(_WIN32) && !defined(__APPLE__)
+                else opt_msg = "No folder chosen (the dialog needs zenity or kdialog): scsi_dir can also be set in eps16.cfg";
+#endif
+            }
+            break;
         case O_KBCH: edit.kbd_channel = x.sel + 1; break;
         }
         build_rows();
@@ -816,13 +845,19 @@ int main(int argc, char **argv) {
         opts_open = true;
         drop_row = -1;
     };
-    std::string opt_msg;
     auto apply_options = [&]() {           // call with mmx NOT held
+        bool scsi_changed = edit.scsi_dir != cfg.scsi_dir;
         cfg = edit;
         cfg.midi_in_set = true;
         {
             std::lock_guard<std::mutex> g(mmx);
             apply_audio();
+            if (scsi_changed) {           // the drives of the old folder go, the new folder's come in
+                for (auto &d : m.scsi.dev) d.reset();
+                std::string d = scsi_dir_of(cfg);
+                if (!d.empty()) m.scsi.attach_dir(d);
+                scsi_note = "SCSI: " + (d.empty() ? std::string("no folder") : d) + "  (restart the EPS to scan the new drives)";
+            }
         }
         midi.apply(cfg.midi_in, cfg.midi_out);
         opt_msg = midi.error.empty() ? "" : midi.error;
@@ -834,10 +869,11 @@ int main(int argc, char **argv) {
     const SDL_Rect btn_apply{OX + OW - 214, OY + OH - 46, 70, 26}, btn_close{OX + OW - 112, OY + OH - 46, 70, 26};
     struct Sect { const char *title; int col, y, first, last; };
     // sections: title, column, top, first and last row
-    const Sect sects[3] = {
+    const Sect sects[4] = {
         { "AUDIO OUTPUTS", 0, Y0, O_API, O_B3MAIN },
         { "SAMPLER INPUT", 1, Y0, O_IN, O_INL },
-        { "MIDI", 1, Y0 + ROW_H * 3 + 18, O_MIDIIN, O_MIDIMAP } };
+        { "MIDI", 1, Y0 + ROW_H * 3 + 18, O_MIDIIN, O_MIDIMAP },
+        { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 36, O_SCSI, O_SCSI } };
     auto field_rect = [&](int row) -> SDL_Rect {
         for (const Sect &sc : sects)
             if (row >= sc.first && row <= sc.last)
@@ -867,7 +903,7 @@ int main(int argc, char **argv) {
     };
     // keyboard order of the fields
     const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN,
-                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP };
+                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;
     // window layout: keyboard strip shown or hidden (it is always there while the options are
@@ -883,7 +919,6 @@ int main(int argc, char **argv) {
         SDL_RenderSetLogicalSize(R, W, H_cur);
         if (resizable) SDL_SetWindowSize(win, ww, (int)(H_cur * sc + 0.5f));
     };
-    NativeMenu nmenu;
     nmenu.init(win, show_kb);
     auto toggle_keyboard = [&]() {
         show_kb = !show_kb; cfg.show_keyboard = show_kb; cfg.save();
@@ -1221,6 +1256,7 @@ int main(int argc, char **argv) {
             m.in_peak = 0;
             scsi_sum = scsi_fitted ? m.scsi.summary() : std::string("off");
             if (shot_at >= 0 && emu_t >= shot_at) shot_at = -2;      // take it after drawing
+            if (open_opts_at_start) { open_opts_at_start = false; open_options(); apply_layout(); }
         }
         if (want_options) open_options();      // enumerates devices: done with the machine unlocked
         if (want_open) {                       // the file dialog runs with the machine unlocked
@@ -1334,8 +1370,8 @@ int main(int argc, char **argv) {
             }
             fill(OX, OY, OW, 1, 0x4a4c51); fill(OX, OY + OH - 1, OW, 1, 0x0b0b0c);
             // title, letter-spaced like "DIGITAL SAMPLING WORKSTATION", with purple rules
-            float tw = ui.width(UiText::TITLE, "OPTIONS  ·  AUDIO AND MIDI", 3);
-            ui.draw(UiText::TITLE, "OPTIONS  ·  AUDIO AND MIDI", OX + OW / 2.0f, OY + 18, LEG, 3, 1);
+            float tw = ui.width(UiText::TITLE, "OPTIONS  ·  AUDIO, MIDI AND SCSI", 3);
+            ui.draw(UiText::TITLE, "OPTIONS  ·  AUDIO, MIDI AND SCSI", OX + OW / 2.0f, OY + 18, LEG, 3, 1);
             fill(OX + 36, OY + 30, (int)(OW / 2.0f - tw / 2 - 56), 2, PURPLE);
             fill((int)(OX + OW / 2.0f + tw / 2 + 20), OY + 30, (int)(OW / 2.0f - tw / 2 - 56), 2, PURPLE);
             // sections and rows
@@ -1371,6 +1407,7 @@ int main(int argc, char **argv) {
             std::string mi = "In: " + (midi.in_name.empty() ? std::string("-") : midi.in_name) + "     Out: " + (midi.out_name.empty() ? std::string("-") : midi.out_name);
             ui.draw(UiText::BODY, ui.fit(UiText::BODY, mi, 640), OX + 280.0f, sy + 20.0f, LEG);
             if (!opt_msg.empty()) ui.draw(UiText::BODY, ui.fit(UiText::BODY, opt_msg, OW - 400.0f), OX + 36.0f, sy + 44.0f, 0xff8070);
+            else if (!scsi_note.empty()) ui.draw(UiText::BODY, ui.fit(UiText::BODY, scsi_note, OW - 400.0f), OX + 36.0f, sy + 44.0f, 0x80e080);
             ui.draw(UiText::SMALL, "Click a field to see its choices  ·  Arrows/Tab: move between fields  ·  Enter: open/choose  ·  A: apply  ·  Esc: close",
                     OX + 36.0f, OY + OH - 22.0f, 0x7a7c80);
             // buttons with their legends above, like Load/Cmd/Edit

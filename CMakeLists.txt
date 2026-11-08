@@ -56,7 +56,7 @@ if(EPS16_GUI)
     else()
       target_link_libraries(eps16 wmcodecdsp)
     endif()
-    target_link_libraries(eps16 ole32 winmm ksuser mfplat mfuuid dsound uuid comdlg32)
+    target_link_libraries(eps16 ole32 winmm ksuser mfplat mfuuid dsound uuid comdlg32 shell32)
     if(EPS16_ASIO)
       target_compile_definitions(eps16 PRIVATE __WINDOWS_ASIO__)
       target_sources(eps16 PRIVATE third_party/rtaudio/include/asio.cpp third_party/rtaudio/include/asiodrivers.cpp

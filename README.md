@@ -62,6 +62,18 @@ Opções: `-DEPS16_MIDI=OFF` (sem RtMidi), `-DEPS16_ASIO=OFF` (sem ASIO no Windo
 
 Resultado: `eps16` (app com janela) e `eps16-cli` (sem janela, para testes e para gravar WAV).
 
+### Plug-in VST3
+
+```sh
+cmake -S plugin -B build-vst -DCMAKE_BUILD_TYPE=Release
+cmake --build build-vst --target EPS16
+```
+Descarrega o SDK VST3 da Steinberg (licença MIT desde a 3.8) e o SDL2 (só para desenhar o painel).
+Opções: `-DVST3_SDK_ROOT=…`, `-DSDL2_SOURCE_DIR=…`, `-DEPS16_VST_GUI=OFF` (sem editor) e
+`-DEPS16_VST_TESTHOST=ON` (o `minihost`, anfitrião mínimo para testes). Windows: com o Visual Studio,
+`cmake -S plugin -B build-vst -A x64`; a partir de Linux, `./build-vst-win-mingw.sh <pasta do llvm-mingw>`
+(o `tools/patch_vst3sdk_mingw.py` adapta o SDK ao MinGW).
+
 ## Ficheiros necessários
 
 Não estão incluídos. Coloca na pasta `roms` ao lado do executável:
@@ -95,6 +107,28 @@ Ver `LEIA-ME-WINDOWS.txt` para o guia completo. Resumo:
 | Ctrl+E / Ctrl+S / Ctrl+R | ejetar / gravar disquete / reset |
 | Ctrl+F, Ctrl+I | efeitos on/off, entrada de áudio on/off |
 
+### Discos SCSI
+
+Imagens com os nomes do ZuluSCSI (`HD0.img` disco no ID 0, `CD5.iso` CD-ROM no ID 5…) numa pasta.
+Escolhe a pasta em **View → Options → SCSI DRIVES → Drive images folder → Choose folder...** (fica em
+`eps16.cfg`, `scsi_dir=`), ou dá-a com `--scsi-dir`. Sem escolha, usa a pasta `scsi` ao lado do programa.
+Depois de mudar de pasta, reinicia o EPS (File → Reset) para o OS ver as drives novas.
+
+### Plug-in VST3 (`EPS16.vst3`)
+
+- Copia a pasta `EPS16.vst3` para `C:\Program Files\Common Files\VST3` e as ROMs e o `os130.img` para
+  `%APPDATA%\Ensoniq\EPS16emu\roms` (a mesma pasta que a app usa).
+- Saídas Main + AUX 1, BUS 2, BUS 3 (as do OEX-6; ativa-as no anfitrião para saírem à parte); entrada
+  estéreo para samplar; MIDI In/Out; "Relógio MIDI do host" para o sequenciador seguir o projeto.
+- **MIDI → canal**: o `os130.img` está em MIDI MULTI (instrumento 1 no canal 9), por isso as notas do
+  anfitrião vão por omissão para o canal 9; o menu da barra (ou o parâmetro "Canal MIDI") escolhe outro
+  canal ou deixa os canais do anfitrião.
+- Barra: Disquete…, Ejetar, Disco SCSI…, Desligar SCSI, **Pasta SCSI…**, Reset. A pasta SCSI fica
+  guardada no projeto e como omissão para novas instâncias e para a app. Arrastar `.img` ou `.efe` para
+  o painel funciona como na app; clique direito numa seta = cima + baixo.
+- O projeto guarda volume, relógio, canal MIDI, pasta SCSI e os caminhos dos discos; ao abrir, o EPS
+  arranca de novo com eles.
+
 ## Estrutura do código
 
 | Ficheiro | Conteúdo |
@@ -106,6 +140,8 @@ Ver `LEIA-ME-WINDOWS.txt` para o guia completo. Resumo:
 | `src/sdl_main.cpp`, `src/rack_ui.*`, `src/ui_text.*`, `src/native_menu.*` | app com janela |
 | `src/cli.cpp` | versão de linha de comandos (testes) |
 | `src/efe_disk.*` | põe ficheiros `.efe` numa disquete temporária (largar na janela) |
+| `src/rack_offscreen.*` | desenha o painel fora do ecrã (editor do VST3) |
+| `plugin/` | plug-in VST3: `eps16_plugin.*`, `eps16_engine.*` (máquina e partilha do 68000), `eps16_editor.*` |
 | `tools/` | geradores da arte do painel, fontes, ícones; `efe2img.py` junta ficheiros EFE a uma imagem |
 
 ## Licenças e créditos
@@ -119,6 +155,8 @@ Ver `LEIA-ME-WINDOWS.txt` para o guia completo. Resumo:
   sob GPLv3, por isso um executável compilado com ASIO fica sob GPLv3. ASIO é marca registada da
   Steinberg Media Technologies GmbH.
 - **SDL2**: licença zlib.
+- **VST3 SDK** e **VSTGUI**, da Steinberg: licença MIT (SDK 3.8). VST é marca registada da Steinberg
+  Media Technologies GmbH.
 - Legendas do painel e das opções compostas com **GNU FreeSans** (GPLv3 com exceção para fontes);
   só estão incluídas imagens já desenhadas.
 - A ROM e o sistema operativo do EPS-16 Plus são propriedade da Ensoniq/E-mu e **não** estão

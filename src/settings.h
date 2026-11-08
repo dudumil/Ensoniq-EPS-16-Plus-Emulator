@@ -20,6 +20,9 @@ struct Settings {
     bool bus_main[2] = { true, true }; // BUS 2/3 also reach the main mix (through the ESP)               // MIDI channel of the on-screen keyboard and wheels (1-16)
     // window
     bool show_keyboard = true;         // strip with the wheels, Patch Select and the keyboard
+    // SCSI drives: folder with ZuluSCSI-style images (HD0.img, CD5.iso ...); "" = the "scsi" folder
+    // next to the program
+    std::string scsi_dir;
 
     std::string path;                  // file the settings were loaded from / are saved to
     bool load(const std::string &file);
