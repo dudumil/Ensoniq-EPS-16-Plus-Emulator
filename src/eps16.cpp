@@ -63,7 +63,11 @@ Eps16::Eps16() {
     };
     otis.read_pot = [this]() -> uint16_t {
         int sel = ((op_pins >> 6) & 1) | (((op_pins >> 4) & 1) << 1) | (((op_pins >> 5) & 1) << 2);
-        return analog[sel] & 0x3ff;
+        if (DBG(EPS_DBG_POT)) fprintf(stderr, "POT %.4f sel=%d -> %d pc=%06x a2=%06x a3=%06x st=%04x f=%04x hi=%04x lo=%04x\n", total_cycles / cpu_clock, sel, analog[sel] & 0x3ff, last_pc(),
+            m68k_get_reg(NULL, M68K_REG_A2), m68k_get_reg(NULL, M68K_REG_A3), m68k_read_memory_16(m68k_get_reg(NULL, M68K_REG_A2)), m68k_read_memory_16(m68k_get_reg(NULL, M68K_REG_A2)+6), m68k_read_memory_16(m68k_get_reg(NULL, M68K_REG_A2)+8), m68k_read_memory_16(m68k_get_reg(NULL, M68K_REG_A2)+10));
+        const uint16_t v = analog[sel] & 0x3ff;
+        seed_pot_filter(v);
+        return v;
     };
     dmac.mem_r8 = [this](uint32_t a) { return (uint8_t)read(a, 1); };
     dmac.mem_w8 = [this](uint32_t a, uint8_t v) { write(a, v, 1); };
@@ -129,6 +133,25 @@ void Eps16::reset() {
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
     m68k_pulse_reset();
     total_cycles = 0;
+}
+
+// The OS keeps a state block per slider (A2): state word, filtered value (+6) and a hysteresis
+// window (+8 high, +10 low); a reading outside the window for a few scans counts as "the slider
+// moved". The block starts zeroed, so the very first scans after boot saw the slider's resting
+// position as a movement and the data entry slider jumped the selection (e.g. the file on the
+// LOAD page) to wherever it sits. When the block is still untouched, seed the filter and the window
+// with the current reading, as if the slider had been resting there: only a real move fires.
+// Recognised by the code that reads the A/D:  move.w $200012,D2 / add.w (6,A2),D2 / roxr.w #1,D2.
+void Eps16::seed_pot_filter(uint16_t v) {
+    const uint32_t pc = last_pc();
+    if (read(pc, 2) != 0x3439 || read(pc + 2, 2) != 0x0020 || read(pc + 4, 2) != 0x0012 ||
+        read(pc + 6, 2) != 0xd46a || read(pc + 8, 2) != 0x0006 || read(pc + 10, 2) != 0xe252) return;
+    const uint32_t a2 = m68k_get_reg(NULL, M68K_REG_A2), a3 = m68k_get_reg(NULL, M68K_REG_A3);
+    if (a2 >= ram.size() || read(a2, 2) || read(a2 + 6, 2) || read(a2 + 8, 2) || read(a2 + 10, 2)) return;
+    const int raw = (int16_t)(uint16_t)(v << 6), w = (int16_t)read(a3 + 2, 2);
+    write(a2 + 6, (uint16_t)raw, 2);
+    write(a2 + 8, (uint16_t)std::min(raw + w, 0x7fff), 2);
+    write(a2 + 10, (uint16_t)std::max(raw - w, -0x8000), 2);
 }
 
 uint32_t Eps16::last_pc() const { return m68k_get_reg(NULL, M68K_REG_PPC); }

@@ -86,6 +86,7 @@ public:
 
     bool trace_io = false, trace_unknown = true;
     uint32_t last_pc() const;
+    void seed_pot_filter(uint16_t v);
     std::function<void(uint32_t)> on_instr;
 
 private:
