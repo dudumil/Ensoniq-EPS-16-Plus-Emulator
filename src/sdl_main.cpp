@@ -371,29 +371,63 @@ int main(int argc, char **argv) {
         for (auto &d : program_rom_dirs(base_dir)) rom_dirs.push_back(d);
     }
     std::string rom_found;                          // the folder the ROMs came from
+    std::string rom_chosen;                         // ... when the user pointed at it (now or before)
+    std::string pref_early;                         // per-user folder (settings)
+    if (char *pp = SDL_GetPrefPath("Ensoniq", "EPS16emu")) { pref_early = pp; SDL_free(pp); }
+    Settings saved;                                 // a ROM folder chosen before is remembered there
+    if (!pref_early.empty()) saved.load(pref_early + "eps16.cfg");
+    saved.path = pref_early + "eps16.cfg";
+    const std::string user_roms = pref_early.empty() ? std::string() : pref_early + "roms";
+    if (!custom_rom_dir && !saved.rom_dir.empty()) rom_dirs.push_back(saved.rom_dir);
+    if (!user_roms.empty()) rom_dirs.push_back(user_roms);
     bool rom_ok = false;
     if (lo_set || hi_set) rom_ok = m.load_rom(lo, hi);
     else {
         for (auto &d : rom_dirs) if (m.load_rom_dir(d)) { rom_ok = true; rom_found = d; break; }
         if (!rom_ok) rom_ok = m.load_rom(lo, hi);
-        if (!rom_ok) if (char *pp = SDL_GetPrefPath("Ensoniq", "EPS16emu")) {   // …/Ensoniq/EPS16emu/roms
-            rom_ok = m.load_rom_dir(std::string(pp) + "roms"); SDL_free(pp);
-        }
+        if (rom_ok && !saved.rom_dir.empty() && rom_found == saved.rom_dir) rom_chosen = rom_found;
     }
-    if (!rom_ok) {
-        fatal("EPS-16 Plus ROM not found.\n\nPut eps16plus-u28.bin and eps16plus-u27.bin in a "
-              "\"roms\" folder next to the program"
-#ifdef __APPLE__
-              " (next to the app, or inside it in Contents/Resources/roms)"
-              " or in ~/Library/Application Support/Ensoniq/EPS16emu/roms."
-              "\n\nIf the app was downloaded, remove the quarantine flag first (Terminal):"
-              "\nxattr -dr com.apple.quarantine <the app>"
-#else
-              "."
-#endif
-              );
-        usage(); return 1;
+    // Not found: say where they were looked for and let the user point at the folder that holds them
+    // (it is remembered). This also covers macOS running a downloaded app from a hidden copy.
+    std::string not_there;
+    while (!rom_ok && !lo_set && !hi_set) {
+        namespace fs = std::filesystem;
+        std::vector<std::string> shown;
+        std::error_code ec;
+        auto show = [&](const std::string &d) {
+            fs::path a = fs::absolute(fs::u8path(d), ec);
+            std::string l = ec ? d : a.lexically_normal().u8string();
+            while (l.size() > 1 && (l.back() == '/' || l.back() == '\\')) l.pop_back();
+            if (std::find(shown.begin(), shown.end(), l) == shown.end()) shown.push_back(l);
+        };
+        show(rom_dir);
+        if (!bundle_parent(base_dir).empty()) show((fs::u8path(bundle_parent(base_dir)) / "roms").u8string());
+        for (auto &d : rom_dirs) show(d);
+        std::string where;
+        for (auto &l : shown) where += "\n  " + l;
+        std::string msg = "EPS-16 Plus ROM not found.\n\nThe ROM files (eps16plus-u28.bin + eps16plus-u27.bin or u28.bin + u27.bin) were looked for in:" + where;
+        if (!not_there.empty()) msg += "\n\nThey are not in the chosen folder either:\n  " + not_there;
+        msg += "\n\nPut them in a \"roms\" folder next to the program, or choose the folder that holds them.";
+        SDL_Init(SDL_INIT_VIDEO);
+        const SDL_MessageBoxButtonData btns[] = {
+            { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Quit" },
+            { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Choose folder..." },
+        };
+        const SDL_MessageBoxData mb{ SDL_MESSAGEBOX_ERROR, nullptr, "Ensoniq EPS-16 Plus", msg.c_str(), 2, btns, nullptr };
+        int hit = 0;
+        fprintf(stderr, "%s\n", msg.c_str());
+        if (SDL_ShowMessageBox(&mb, &hit) != 0 || hit != 1) break;
+        NativeMenu picker;
+        std::string d = picker.choose_folder_dialog("Choose the folder with the EPS-16 Plus ROM files");
+        if (d.empty()) continue;                    // cancelled: back to the message
+        std::vector<std::string> cands{ d };
+        for (auto &sd : rom_subdirs(d)) cands.push_back(sd);
+        for (auto &c : cands) if (m.load_rom_dir(c)) { rom_ok = true; rom_found = rom_chosen = c; break; }
+        if (!rom_ok) { not_there = d; continue; }
+        saved.rom_dir = rom_found;                  // remembered for the next start
+        if (!pref_early.empty()) saved.save();
     }
+    if (!rom_ok) { usage(); return 1; }
     std::string pref_dir;                           // per-user folder (settings, writable disk images)
     if (char *pp = SDL_GetPrefPath("Ensoniq", "EPS16emu")) { pref_dir = pp; SDL_free(pp); }
     // start-up mode: from the OS disk image (floppy) or from a SCSI drive with no floppy in the drive
@@ -411,6 +445,7 @@ int main(int argc, char **argv) {
             for (auto &d : rom_subdirs("")) os_dirs.push_back(d);
             for (auto &d : program_os_dirs(base_dir)) os_dirs.push_back(d);
         }
+        if (!rom_chosen.empty()) { os_dirs.push_back(rom_chosen); for (auto &d : rom_subdirs(rom_chosen)) os_dirs.push_back(d); }
         for (auto &d : os_dirs) { os_disk = find_disk(d); if (!os_disk.empty()) break; }
 #ifdef __APPLE__
         // inside the .app bundle the image must not be written to (it would break the

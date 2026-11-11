@@ -97,6 +97,8 @@ std::string mac_choose_folder_dialog(const std::string &title) {
         [p setCanCreateDirectories:YES];
         [p setAllowsMultipleSelection:NO];
         [p setTitle:[NSString stringWithUTF8String:title.c_str()]];
+        [p setMessage:[NSString stringWithUTF8String:title.c_str()]];
+        [NSApp activateIgnoringOtherApps:YES];       // also when no window is open yet (ROMs not found)
         if ([p runModal] != NSModalResponseOK) return "";
         NSURL *u = [[p URLs] firstObject];
         return u ? std::string([[u path] UTF8String]) : std::string();
