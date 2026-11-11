@@ -135,7 +135,9 @@ int main(int argc, char **argv) {
     double step = 0.01;
     std::map<uint32_t, int> pcs;
     bool pcprof = getenv("EPS_PCPROF") != nullptr;
+    const double fdc_log_t = getenv("EPS_FDC_LOG") ? atof(getenv("EPS_FDC_LOG")) : -1;   // log floppy commands from time t
     for (double t = 0; t < secs; t += step) {
+        if (fdc_log_t >= 0 && t >= fdc_log_t && !m.fdc.log) { m.fdc.log = true; fprintf(stderr, "[%.2f fdc log on]\n", t); }
         for (auto &e : evs) if (e.t >= t && e.t < t + step && e.code < 0x10000) m.panel.button(e.code, e.down);
         for (auto &sw : swaps) if (sw.first >= t && sw.first < t + step) { m.eject_disk(); m.insert_disk(sw.second); printf("[swap %s]\n", sw.second.c_str()); }
         for (auto &e : avals) if (e.t >= t && e.t < t + step) m.analog[e.c & 7] = (uint16_t)e.v;

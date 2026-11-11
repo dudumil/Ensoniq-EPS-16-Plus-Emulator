@@ -233,7 +233,7 @@ void Eps16Engine::insert_disk(const std::string &path) {
             return;
         }
         if (a.fdc.dirty) a.fdc.save();
-        if (a.insert_disk(path)) { floppy = path; set_status("Disk: " + path); }
+        if (a.insert_disk(path)) { floppy = path; set_status(a.fdc.mirage() ? std::string("Mirage disk in the drive: Command > System/MIDI > LOAD MIRAGE-DSK SOUND (the OS disk is needed first)") : "Disk: " + path); }
         else set_status("Cannot open " + path);
     });
 }

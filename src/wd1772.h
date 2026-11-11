@@ -1,5 +1,7 @@
 // WD1772 floppy controller, sector-level emulation with one 3.5" DD drive holding a raw
-// Ensoniq disk image (80 tracks, 2 sides, 10 x 512-byte sectors = 800 KB).
+// Ensoniq disk image (80 tracks, 2 sides, 10 x 512-byte sectors = 800 KB), or an Ensoniq Mirage
+// disk image (80 tracks, 1 side, sectors 0-4 of 1024 bytes and sector 5 of 512 bytes = 440 KB),
+// read by Command > System > LOAD MIRAGE-DSK SOUND.
 #pragma once
 #include <cstdint>
 #include <string>
@@ -28,10 +30,14 @@ public:
     bool log = false;
     double cpu_clock = 10000000.0;
     bool motor_on() const { return m_motor > 0; }
+    bool mirage() const { return mirage_; }
+    static constexpr long MIRAGE_SIZE = 450560;   // 80 x (5 x 1024 + 512)
 
 private:
     std::vector<uint8_t> disk;
     int tracks = 80, heads = 2, spt = 10, ssize = 512;
+    bool mirage_ = false;               // Mirage geometry (see above)
+    int sec_size(int sec) const;        // bytes in sector `sec` (sector register numbering)
     uint8_t status = 0, track = 0, sector = 0, data = 0, cmd = 0;
     int head_pos = 0;                   // physical cylinder
     int dir = 1;

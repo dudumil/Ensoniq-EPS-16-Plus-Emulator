@@ -27,7 +27,9 @@ bool Wd1772::load(const std::string &p) {
     fclose(f);
     if (!ok || n <= 0) return false;
     disk.swap(d); path = p; dirty = false;
-    spt = disk.size() == 1638400 ? 20 : disk.size() == 737280 ? 9 : disk.size() == 1474560 ? 18 : 10;
+    mirage_ = disk.size() == (size_t)MIRAGE_SIZE;
+    heads = mirage_ ? 1 : 2;
+    spt = mirage_ ? 6 : disk.size() == 1638400 ? 20 : disk.size() == 737280 ? 9 : disk.size() == 1474560 ? 18 : 10;
     return true;
 }
 
@@ -41,11 +43,17 @@ bool Wd1772::save() {
     return ok;
 }
 
-void Wd1772::eject() { save(); disk.clear(); path.clear(); }
+void Wd1772::eject() { save(); disk.clear(); path.clear(); mirage_ = false; heads = 2; spt = 10; }
+
+int Wd1772::sec_size(int sec) const {
+    if (mirage_) return sec - first_sector == 5 ? 512 : 1024;
+    return ssize;
+}
 
 long Wd1772::offset(int cyl, int hd, int sec) const {
     sec -= first_sector;
     if (disk.empty() || cyl < 0 || cyl >= tracks || hd < 0 || hd >= heads || sec < 0 || sec >= spt) return -1;
+    if (mirage_) return (long)cyl * (5 * 1024 + 512) + sec * 1024L;   // 5 x 1024, then the 512-byte sector
     return ((long)(cyl * heads + hd) * spt + sec) * ssize;
 }
 
@@ -85,10 +93,10 @@ void Wd1772::start_sector() {
     pos = 0; byte_timer = byte_clocks() * 4;
     if (cmd & 0x20) {
         if (write_protect) { finish(S_WP); return; }
-        buf.assign(ssize, 0);
+        buf.assign(sec_size(sector), 0);
         state = WRITE; set_drq(true);
     } else {
-        buf.assign(disk.begin() + off, disk.begin() + off + ssize);
+        buf.assign(disk.begin() + off, disk.begin() + off + sec_size(sector));
         state = READ;
     }
 }
@@ -135,7 +143,7 @@ void Wd1772::write(int reg, uint8_t v) {
             break;
         case 6:                             // read address (C0) / force interrupt handled above
             if (!has_disk()) { finish(S_RNF); return; }
-            buf = { (uint8_t)head_pos, (uint8_t)side, sector, 2, 0, 0 };
+            buf = { (uint8_t)head_pos, (uint8_t)side, sector, (uint8_t)(sec_size(sector) == 1024 ? 3 : 2), 0, 0 };
             pos = 0; state = RADDR; byte_timer = byte_clocks() * 8;
             break;
         case 7:                             // read track (E0) / write track (F0): format
@@ -190,9 +198,9 @@ void Wd1772::run(int clocks) {
             byte_timer += byte_clocks();
             if (m_drq) { status |= S_LOST; data = 0; }
             buf[pos++] = data;
-            if (pos >= ssize) {
+            if (pos >= (int)buf.size()) {
                 long off = offset(head_pos, side, sector);
-                if (off >= 0) { memcpy(&disk[off], buf.data(), ssize); dirty = true; }
+                if (off >= 0) { memcpy(&disk[off], buf.data(), buf.size()); dirty = true; }
                 if (multi) { sector++; start_sector(); if (state != WRITE) return; continue; }
                 finish(status & S_LOST);
                 return;
@@ -211,7 +219,7 @@ void Wd1772::run(int clocks) {
             if (pos >= (fast ? 6800 : 6250)) {
                 for (int s = 0; s < spt; s++) {
                     long off = offset(head_pos, side, s + first_sector);
-                    if (off >= 0) { memset(&disk[off], 0, ssize); dirty = true; }
+                    if (off >= 0) { memset(&disk[off], 0, sec_size(s + first_sector)); dirty = true; }
                 }
                 finish(0);
                 return;

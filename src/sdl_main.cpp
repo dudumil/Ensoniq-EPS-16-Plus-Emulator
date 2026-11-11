@@ -1153,7 +1153,8 @@ int main(int argc, char **argv) {
         std::string r = m.scsi.attach_file(p);
         if (!r.empty()) { status = r; status_t = SDL_GetTicks(); return; }
         if (m.fdc.dirty && !readonly) m.fdc.save();
-        if (m.insert_disk(p)) status = "Disk inserted: " + p; else status = "Cannot open " + p;
+        if (m.insert_disk(p)) status = m.fdc.mirage() ? std::string("Mirage disk in the drive: Command > System/MIDI > LOAD MIRAGE-DSK SOUND (the OS disk is needed first)") : "Disk inserted: " + p;
+        else status = "Cannot open " + p;
         status_t = SDL_GetTicks();
     };
     auto save_disk = [&]() {

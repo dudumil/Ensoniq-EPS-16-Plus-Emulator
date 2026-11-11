@@ -98,6 +98,12 @@ BOOTING FROM A SCSI DRIVE
    the program: a copy left in %APPDATA%\Ensoniq\EPS16emu is not used, so
    deleting os130.img from roms really removes it.
 
+MIRAGE DISKS
+   Ensoniq Mirage disk images (440 KB .img) can be dropped on the window like
+   any floppy. Command > System/MIDI > LOAD MIRAGE-DSK SOUND: the OS first asks
+   for the OS disk (keep os130.img in the drive and press Enter), then for the
+   sound and for the Mirage disk: drop the Mirage image and press Enter.
+
 ROMS NOT FOUND
    If the ROMs are not found, eps16.exe lists the folders it searched and offers
    "Choose folder...": pick the folder with the ROM files; it is remembered

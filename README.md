@@ -49,6 +49,7 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
   machine with an empty floppy drive, booting from a SCSI drive that has the OS on it (command line:
   `--boot scsi` / `--boot floppy`, this run only). The OS disk image is only ever taken from the `roms`
   folder next to the program: nothing is fetched from `%APPDATA%`, so deleting it there removes it.
+- **Mirage disks:** a 440 KB Ensoniq Mirage disk image (80 tracks, 1 side, 5 x 1024 + 512-byte sectors) can go in the floppy drive: Command › System/MIDI › *LOAD MIRAGE-DSK SOUND* imports its sounds (the OS asks for the OS disk first, then for the Mirage disk).
 - **SCSI activity LED:** the red LED above the floppy drive blinks while the SCSI bus is in use: slowly while reading, fast while writing.
 - **ROMs not found:** the program lists the folders it searched and offers "Choose folder..."; the chosen folder is remembered (the plug-in uses it too).
 - **Up + Down together** jumps to the middle of the value's range (0 for -99..+99, 50 for 0..99), as
