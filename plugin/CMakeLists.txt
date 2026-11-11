@@ -110,6 +110,10 @@ endif()
 if(UNIX AND NOT APPLE)
   target_link_libraries(${target} PRIVATE ${CMAKE_DL_LIBS})
 endif()
+if(APPLE AND EPS16_VST_GUI)
+  # frameworks that the static SDL2 (Cocoa video driver) pulls in
+  target_link_libraries(${target} PRIVATE "-framework IOKit" "-framework Cocoa" "-framework CoreVideo" "-framework CoreGraphics" "-framework Metal" "-framework QuartzCore" "-framework CoreFoundation" "-framework Carbon" "-framework ForceFeedback" "-framework AudioToolbox" "-framework CoreAudio")
+endif()
 if(MINGW)
   # MSVC links these through #pragma comment(lib); MinGW needs them spelled out
   target_link_libraries(${target} PRIVATE d2d1 dwrite dwmapi shlwapi opengl32 windowscodecs
