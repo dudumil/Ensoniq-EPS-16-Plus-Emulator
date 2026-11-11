@@ -1,7 +1,27 @@
 ENSONIQ EPS-16 PLUS (RACK) EMULATOR FOR macOS (Apple Silicon) - APP AND VST3 PLUG-IN
 =====================================================================================
 
-This package contains the source code; build it once on your Mac.
+This package contains the source code. There are two ways to get the app and the plug-in:
+
+OPTION A - no tools to install (recommended): build it on GitHub
+   1. Open  https://github.com/dudumil/Ensoniq-EPS-16-Plus-Emulator/actions  in a browser (sign in to GitHub), click the "macOS" workflow and
+      then "Run workflow" (or open the latest green run).
+   2. When the run is green, scroll to "Artifacts" at the bottom of the run's page and download
+      "EPS16-macOS" (a zip with EPS-16-Plus.app.zip and EPS16.vst3.zip inside; unzip both).
+   3. Drag EPS-16-Plus.app to Applications. In Terminal, once, remove the "downloaded from the internet" flag:
+         xattr -dr com.apple.quarantine /Applications/EPS-16-Plus.app
+      and copy EPS16.vst3 to ~/Library/Audio/Plug-Ins/VST3/ (same xattr command on it).
+   4. The ROMs and the OS disk are NOT in the download. Right-click the app > "Show Package Contents"
+      > Contents > Resources, create a folder "roms" and put the ROMs and os130.img in it
+      (or: ROMs in ~/Library/Application Support/Ensoniq/EPS16emu/roms and drop the OS disk
+      image on the app window). Open the app once: the plug-in then uses the same files.
+   Skip to section 4 below.
+
+OPTION B - build it yourself on your Mac (sections 1 to 3).
+   If "xcode-select --install" says the software is not available on the server, install the
+   tools another way: download "Command Line Tools for Xcode" from
+   https://developer.apple.com/download/all/ (free Apple ID), or install Xcode from the App Store;
+   then, if needed,  sudo xcode-select --reset
 
 1. Prepare (once)
    - Install Apple's Command Line Tools: open Terminal and type
