@@ -55,7 +55,7 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
 - **MIDI:** the supplied OS disk is set to MIDI MULTI (instruments 1-8 on channels 9-16); by default
   MIDI In is sent to the "Keyboard channel" (9) set in the options.
 - **Options** (View › Options, Ctrl+O): audio driver (WASAPI, DirectSound, ASIO...), outputs, sample
-  rate, buffer, OEX-6 outputs, BUS 2/3 into the main mix, sampler input, MIDI ports and channel, and
+  rate, buffer, OEX-6 outputs, sampler input, MIDI ports and channel, and
   the SCSI drives folder. Settings are kept in `%APPDATA%\Ensoniq\EPS16emu\eps16.cfg`.
 
 **Computer keyboard** (it does not play notes: use a MIDI keyboard or the on-screen keyboard):
@@ -105,6 +105,9 @@ Needs a C++17 compiler, CMake and SDL2 (or `-DEPS16_BUNDLED_SDL=ON` to build it 
 cmake -S . -B build && cmake --build build -j          # app and command-line version
 cmake -S plugin -B build-vst && cmake --build build-vst # VST3 plug-in (downloads the VST3 SDK)
 ```
+
+macOS (Apple Silicon): `./build-mac.sh` builds `EPS-16-Plus.app` and the VST3 plug-in into `dist/` (see
+`README-MAC.txt`); the `macOS` GitHub Actions workflow does the same on a Mac runner.
 
 Cross-compiling for Windows from Linux: see `mingw64.cmake.example` and `build-vst-win-mingw.sh`.
 Technical notes (emulated hardware, memory map, code layout), in Portuguese:

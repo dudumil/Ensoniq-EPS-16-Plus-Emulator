@@ -68,8 +68,8 @@ AUDIO AND MIDI (View > Options or Ctrl+O)
    sends it only there. If the sound card lacks those outputs, it goes back to
    Main.
    BUS 2 and BUS 3 are the internal effects buses: they reach Main through the
-   ESP. "BUS 2/3 into Main = no" takes them out of the main mix (they are only
-   on the chosen OEX-6 output).
+   ESP, as on the real EPS (which instruments use them is set with the OS);
+   the OEX-6 outputs can also send them to a chosen pair of outputs.
    Sampler input: device and ONE channel (the EPS-16 Plus is mono).
    MIDI In / MIDI Out, keyboard channel and MIDI In routing.
    APPLY saves to %APPDATA%\Ensoniq\EPS16emu\eps16.cfg.

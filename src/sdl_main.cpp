@@ -712,7 +712,7 @@ int main(int argc, char **argv) {
         }
         in_rel_l = cfg.in_left - s.in_first; in_rel_r = (int)in_rel_l;   // the EPS-16 Plus has one (mono) input
         if (aio.in_channels() == 2 && cfg.audio_api == "sdl") { in_rel_l = 0; in_rel_r = 0; }
-        m.bus_to_main[0] = cfg.bus_main[0]; m.bus_to_main[1] = cfg.bus_main[1];
+        m.bus_to_main[0] = m.bus_to_main[1] = true;   // BUS 2/3 always reach the main mix, as on the EPS (the OS decides what goes there)
         cur_rate = ok ? aio.rate() : 48000;
         m.out_rate = cur_rate;
         unsigned buf = ok ? aio.buffer() : 256;
@@ -738,7 +738,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> midi_ins, midi_outs;
     NativeMenu nmenu;
     std::string opt_msg, scsi_note;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_N };
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -831,12 +831,6 @@ int main(int argc, char **argv) {
             if (ap >= 0 && ap < pairs) x.sel = first + ap;
             else x.sel = (a == 0 && ap == -2) ? 1 : 0;
         }
-        for (int b = 0; b < 2; b++) {
-            OptRow &x = r[O_B2MAIN + b];
-            x.label = "BUS " + std::to_string(b + 2) + " into Main";
-            x.items = { "yes (as on the EPS)", "no (OEX-6 output only)" };
-            x.sel = edit.bus_main[b] ? 0 : 1;
-        }
         r[O_IN].label = "Input device";
         r[O_IN].items.push_back("(none)");
         r[O_IN].items.push_back("(default)");
@@ -896,7 +890,6 @@ int main(int argc, char **argv) {
         case O_AUX2: case O_AUX3: edit.aux_pair[row - O_AUX1] = x.sel - 1; break;
         case O_IN: edit.audio_in = x.sel == 0 ? "" : x.sel == 1 ? "*" : v; edit.in_left = edit.in_right = 0; break;
         case O_INL: edit.in_left = edit.in_right = x.sel; break;
-        case O_B2MAIN: case O_B3MAIN: edit.bus_main[row - O_B2MAIN] = x.sel == 0; break;
         case O_MIDIMAP: edit.midi_remap = x.sel == 0; break;
         case O_MIDIIN: edit.midi_in = x.sel == 0 ? "" : v; edit.midi_in_set = true; break;
         case O_MIDIOUT: edit.midi_out = x.sel == 0 ? "" : v; break;
@@ -962,7 +955,7 @@ int main(int argc, char **argv) {
     struct Sect { const char *title; int col, y, first, last; };
     // sections: title, column, top, first and last row
     const Sect sects[4] = {
-        { "AUDIO OUTPUTS", 0, Y0, O_API, O_B3MAIN },
+        { "AUDIO OUTPUTS", 0, Y0, O_API, O_AUX3 },
         { "SAMPLER INPUT", 1, Y0, O_IN, O_INL },
         { "MIDI", 1, Y0 + ROW_H * 3 + 6, O_MIDIIN, O_MIDIMAP },
         { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_BOOT } };
@@ -995,7 +988,7 @@ int main(int argc, char **argv) {
         drop_top = std::clamp(drop_top, 0, std::max(0, n - DROP_MAX));
     };
     // keyboard order of the fields
-    const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN,
+    const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3,
                              O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;

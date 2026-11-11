@@ -324,7 +324,7 @@ void RackUI::draw(const RackState &s, VfdRenderer &vfd) {
     if (!scsi_seen_init) { scsi_seen = s.scsi_activity; scsi_seen_init = true; }
     if (s.scsi_activity != scsi_seen) { scsi_seen = s.scsi_activity; scsi_seen_t = s.ticks; scsi_hit = true; }
     const bool scsi_lit = scsi_hit && (uint32_t)(s.ticks - scsi_seen_t) < 70;
-    led(PU(709.5f), PV(340), 14, 8, 0xff2a1a, scsi_lit);
+    led(PU(709.5f), PV(337), 14, 8, 0xff2a1a, scsi_lit);
 
     // ---- legends
     int i = 0;

@@ -1,0 +1,26 @@
+# Builds the app and the VST3 plug-in for macOS (Apple Silicon) on a GitHub runner.
+# The files are under "Artifacts" on the run's page.
+name: macOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: ./build-mac.sh --no-install
+      - name: Package
+        run: |
+          cd dist
+          ditto -c -k --keepParent EPS-16-Plus.app EPS-16-Plus-app.zip
+          ditto -c -k --keepParent EPS16.vst3 EPS16-vst3.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EPS16-macOS
+          path: |
+            dist/EPS-16-Plus-app.zip
+            dist/EPS16-vst3.zip
+            dist/eps16-cli

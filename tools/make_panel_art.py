@@ -25,6 +25,7 @@ def PU(px): return 178 + (px - 12) * 2.237
 def PV(py): return 155 + (py - 330) * 2.237
 def lab(t, x, y, size=11, col=GREY, anchor='c'): L.append((t, PU(x), PV(y), size, col, anchor))
 
+lab('SCSI ACTIVITY', 709.5, 345.5, 8)   # under the SCSI activity LED, over the floppy drive
 lab('POWER', 48.5, 411, 10); lab('VOLUME', 85, 411, 10); lab('PHONES', 49, 486.5, 10)
 cols = (133.5, 161, 188.5)
 for r, (names, ny, ty) in enumerate(((('ENV 1', 'ENV 2', 'ENV 3'), 352, 372.5), (('PITCH', 'FILTER', 'AMP'), 384, 404),

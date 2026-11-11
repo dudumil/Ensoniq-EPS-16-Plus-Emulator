@@ -289,7 +289,7 @@ void Eps16Engine::apply_settings(Eps16 &a, bool first) {
     cfg_stamp = cfg_time(cfg);
     Settings st; st.load(cfg);
     midi_channel = st.midi_remap ? st.kbd_channel : 0;
-    a.bus_to_main[0] = st.bus_main[0]; a.bus_to_main[1] = st.bus_main[1];
+    a.bus_to_main[0] = a.bus_to_main[1] = true;
     a.aux1_mix = st.aux_pair[0] != -2;
     if (first || st.scsi_dir != scsi_folder) {
         scsi_folder = st.scsi_dir;
