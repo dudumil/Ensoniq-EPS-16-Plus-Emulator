@@ -7,7 +7,7 @@ OPTION A - no tools to install (recommended): build it on GitHub
    1. Open  https://github.com/dudumil/Ensoniq-EPS-16-Plus-Emulator/actions  in a browser (sign in to GitHub), click the "macOS" workflow and
       then "Run workflow" (or open the latest green run).
    2. When the run is green, scroll to "Artifacts" at the bottom of the run's page and download
-      "EPS16-macOS" (a zip with EPS-16-Plus.app.zip and EPS16.vst3.zip inside; unzip both).
+      "EPS16-macOS" (a zip with EPS-16-Plus-app.zip and EPS16-vst3.zip inside; unzip both).
    3. Drag EPS-16-Plus.app to Applications. In Terminal, once, remove the "downloaded from the internet" flag:
          xattr -dr com.apple.quarantine /Applications/EPS-16-Plus.app
       and copy EPS16.vst3 to ~/Library/Audio/Plug-Ins/VST3/ (same xattr command on it).
