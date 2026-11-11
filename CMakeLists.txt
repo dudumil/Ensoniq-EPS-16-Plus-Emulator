@@ -3,6 +3,7 @@ set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS: Apple Silicon only")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "macOS minimum version")
 project(eps16emu C CXX)
 if(APPLE)
+  enable_language(OBJC)     # SDL .m files must be plain Objective-C (no -std=gnu++17)
   enable_language(OBJCXX)   # src/mac/menu_mac.mm (File / View menus)
 endif()
 
