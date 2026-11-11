@@ -65,6 +65,8 @@ public:
     std::string summary() const;        // one line per attached device
     // bus activity counter (commands and data bytes), read by the front end for the drive LED
     std::atomic<uint32_t> activity{0};
+    // data bytes written to a drive: the LED blinks faster while writing than while reading
+    std::atomic<uint32_t> writes{0};
     bool force_readonly = false;
     bool attach(int id, const std::string &path, ScsiDevice::Type type, int block_size = 0);
     void raise(uint8_t code);           // queue an interrupt (status code)

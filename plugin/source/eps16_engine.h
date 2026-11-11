@@ -20,7 +20,7 @@ struct EngineMidi { int offset; uint8_t bytes[3]; int len; };
 struct EngineSnapshot {
     Panel panel;
     bool disk = false, drive_busy = false;
-    uint32_t scsi_activity = 0;
+    uint32_t scsi_activity = 0, scsi_writes = 0;
     std::string floppy, scsi;            // floppy image path, SCSI summary
     std::string status;                  // last message for the status line
     uint32_t status_serial = 0;

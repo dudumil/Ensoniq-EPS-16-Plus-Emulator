@@ -1188,7 +1188,7 @@ int main(int argc, char **argv) {
     while (!quit) {
         Panel pv;                     // snapshot of the machine state for drawing
         bool fdc_dirty, has_disk, scsi_fitted, drive_busy;
-        uint32_t scsi_act = 0;
+        uint32_t scsi_act = 0, scsi_wr = 0;
         std::string scsi_sum, disk_path;
         bool want_options = false, want_apply = false, want_kb_toggle = false, want_open = false;
         {
@@ -1414,6 +1414,7 @@ int main(int argc, char **argv) {
             pv = m.panel;
             fdc_dirty = m.fdc.dirty; has_disk = m.fdc.has_disk(); scsi_fitted = m.scsi_fitted; disk_path = m.fdc.path;
             drive_busy = m.fdc.motor_on(); scsi_act = m.scsi.activity.load(std::memory_order_relaxed);
+            scsi_wr = m.scsi.writes.load(std::memory_order_relaxed);
             m.in_peak = 0;
             scsi_sum = scsi_fitted ? m.scsi.summary() : std::string("off");
             if (shot_at >= 0 && emu_t >= shot_at) shot_at = -2;      // take it after drawing
@@ -1444,7 +1445,7 @@ int main(int argc, char **argv) {
                 if (c.ch == Eps16::AN_VOLUME) rs.volume = (float)c.val;
                 if (c.ch == Eps16::AN_DATA) rs.data = (float)c.val;
             }
-            rs.disk = has_disk; rs.drive_busy = drive_busy; rs.scsi_activity = scsi_act;
+            rs.disk = has_disk; rs.drive_busy = drive_busy; rs.scsi_activity = scsi_act; rs.scsi_writes = scsi_wr;
             rs.power_held = power_held;
             rack.draw(rs, vfd);
         }

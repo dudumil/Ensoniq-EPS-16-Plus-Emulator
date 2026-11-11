@@ -353,6 +353,7 @@ EngineSnapshot Eps16Engine::snapshot() {
     s.booted = ok;
     s.panel = m->panel;
     s.disk = m->fdc.has_disk(); s.drive_busy = m->fdc.motor_on(); s.scsi_activity = m->scsi.activity.load(std::memory_order_relaxed);
+    s.scsi_writes = m->scsi.writes.load(std::memory_order_relaxed);
     s.floppy = s.disk ? m->fdc.path : std::string();
     s.scsi = m->scsi.summary();
     s.status = ok ? status : err; s.status_serial = status_serial;

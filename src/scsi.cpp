@@ -260,6 +260,7 @@ uint8_t Wd33c93::dma_read() {
 
 void Wd33c93::dma_write(uint8_t v) {
     activity.fetch_add(1, std::memory_order_relaxed);
+    if (phase == DATA_OUT) writes.fetch_add(1, std::memory_order_relaxed);
     if (phase != DATA_OUT || pos >= buf.size()) return;
     buf[pos++] = v;
     if (xfer_left) set_count(xfer_left - 1);

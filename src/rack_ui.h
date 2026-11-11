@@ -22,6 +22,7 @@ struct RackState {
     const bool *held = nullptr;        // held[panel button index], 64 entries
     float volume = 1, data = 0.5f;     // slider positions 0..1 (1 = top)
     bool disk = false, drive_busy = false;
+    uint32_t scsi_writes = 0;          // SCSI bytes written: the LED blinks faster while writing
     uint32_t scsi_activity = 0;        // SCSI bus activity counter: the LED over the floppy drive blinks when it changes
     bool power_held = false;
 };
@@ -51,6 +52,7 @@ public:
 private:
     float K;
     uint32_t scsi_seen = 0, scsi_seen_t = 0;   // last activity count and when it changed (LED hold)
+    uint32_t scsi_wseen = 0, scsi_write_t = 0, scsi_start_t = 0;   // last write count, when it changed, burst start
     bool scsi_seen_init = false, scsi_hit = false;
     SDL_Renderer *R = nullptr;
     SDL_Texture *plate = nullptr, *glow = nullptr;

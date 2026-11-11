@@ -63,7 +63,7 @@ public:
         RackState rs;
         rs.panel = &snap.panel; rs.ticks = now_ms(); rs.held = held;
         rs.volume = (float)volume_value(); rs.data = (float)data;
-        rs.disk = snap.disk; rs.drive_busy = snap.drive_busy; rs.scsi_activity = snap.scsi_activity;
+        rs.disk = snap.disk; rs.drive_busy = snap.drive_busy; rs.scsi_activity = snap.scsi_activity; rs.scsi_writes = snap.scsi_writes;
         rs.power_held = power_held;
         off.render(rs);
         copy_pixels();
