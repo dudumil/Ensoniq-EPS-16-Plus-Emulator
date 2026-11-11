@@ -17,6 +17,8 @@ Available as a **Windows app** and a **VST3 instrument plug-in**.
   level meter.
 - Sequencer with correct tempo, MIDI In/Out.
 - SCSI option (ZuluSCSI-style images): detection at boot, CHANGE STORAGE DEVICE, FORMAT SCSI DRIVE.
+- Import of **Ensoniq Mirage** sounds from Mirage disk images (440 KB `.img`): Command › System/MIDI ›
+  LOAD MIRAGE-DSK SOUND.
 - OEX-6 Output Expander outputs (AUX 1, BUS 2, BUS 3) on separate outputs of your audio interface.
 - Patch Select buttons, Volume and Data Entry sliders, the full rack front panel and an on-screen
   keyboard.
