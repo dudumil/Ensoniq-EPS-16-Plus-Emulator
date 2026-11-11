@@ -11,10 +11,12 @@ OPTION A - no tools to install (recommended): build it on GitHub
    3. Drag EPS-16-Plus.app to Applications. In Terminal, once, remove the "downloaded from the internet" flag:
          xattr -dr com.apple.quarantine /Applications/EPS-16-Plus.app
       and copy EPS16.vst3 to ~/Library/Audio/Plug-Ins/VST3/ (same xattr command on it).
-   4. The ROMs and the OS disk are NOT in the download. Right-click the app > "Show Package Contents"
-      > Contents > Resources, create a folder "roms" and put the ROMs and os130.img in it
-      (or: ROMs in ~/Library/Application Support/Ensoniq/EPS16emu/roms and drop the OS disk
-      image on the app window). Open the app once: the plug-in then uses the same files.
+   4. The ROMs and the OS disk are NOT in the download. Put them in a folder called "roms" (or
+      "ROM", any case) next to EPS-16-Plus.app - e.g. in Applications: /Applications/roms - or
+      inside the app (right-click > "Show Package Contents" > Contents > Resources > roms).
+      The app must have had the quarantine flag removed (step 3): otherwise macOS runs it from a
+      hidden temporary copy and the folder next to it is not seen.
+      Open the app once: the plug-in then uses the same files.
    Skip to section 4 below.
 
 OPTION B - build it yourself on your Mac (sections 1 to 3).

@@ -1,5 +1,6 @@
 #include "eps16_engine.h"
 #include "efe_disk.h"
+#include "search_dirs.h"
 #include "settings.h"
 #include "m68k.h"
 #include <cstring>
@@ -62,7 +63,7 @@ bool Eps16Engine::boot(const std::string &resources, const std::string &user) {
     // records its folder in eps16.cfg as app_dir), the per-user folder, and last the bundle.
     Settings st; st.load((fs::u8path(user) / "eps16.cfg").u8string());
     std::vector<std::string> dirs;
-    if (!st.app_dir.empty()) { dirs.push_back((fs::u8path(st.app_dir) / "roms").u8string()); dirs.push_back(st.app_dir); }
+    if (!st.app_dir.empty()) { for (auto &d : rom_subdirs(st.app_dir)) dirs.push_back(d); dirs.push_back(st.app_dir); }
     dirs.push_back((fs::u8path(user) / "roms").u8string()); dirs.push_back(user);
     if (!resources.empty()) dirs.push_back(resources);
     app_dir = st.app_dir;
@@ -92,7 +93,7 @@ bool Eps16Engine::boot(const std::string &resources, const std::string &user) {
     // only while the bundle image exists.)
     fs::path os;
     if (!st.app_dir.empty())
-        for (auto &d : { (fs::u8path(st.app_dir) / "roms").u8string(), st.app_dir }) { os = find_disk(d); if (!os.empty()) break; }
+        for (auto &d : rom_subdirs(st.app_dir)) { os = find_disk(d); if (!os.empty()) break; }
     if (os.empty() && !resources.empty()) {
         fs::path b = find_disk(resources);
         if (!b.empty() && copy_if_missing(b, fs::u8path(user) / b.filename())) os = fs::u8path(user) / b.filename();

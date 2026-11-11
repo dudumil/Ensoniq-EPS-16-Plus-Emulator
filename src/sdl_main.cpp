@@ -9,6 +9,7 @@
 #include "native_menu.h"
 #include "win/eps16_icon64.h"
 #include "audio_io.h"
+#include "search_dirs.h"
 #include "settings.h"
 #include <SDL.h>
 #include <cstdio>
@@ -357,20 +358,40 @@ int main(int argc, char **argv) {
 
     Eps16 m;
     m.set_wave_mb(ram_mb);
-    bool rom_ok = (lo_set || hi_set) ? m.load_rom(lo, hi) : (m.load_rom_dir(rom_dir) || m.load_rom(lo, hi));
-    if (!rom_ok && !lo_set && !hi_set) {            // also look next to the executable
-        if (char *bp = SDL_GetBasePath()) { rom_ok = m.load_rom_dir(std::string(bp) + rom_dir); SDL_free(bp); }
+    std::string base_dir;                           // the program's folder (in an .app: Contents/Resources)
+    if (char *bp = SDL_GetBasePath()) { base_dir = bp; SDL_free(bp); }
+    // Folders for the ROMs, best first: "roms" in the working directory, the program folder's
+    // "roms" (or "rom", any case) folder and the program folder, and on macOS the "roms" folder
+    // next to the .app and the folder that holds the .app; last the per-user folder.
+    const bool custom_rom_dir = rom_dir != "roms";
+    std::vector<std::string> rom_dirs{ rom_dir };
+    if (custom_rom_dir) { if (!base_dir.empty()) rom_dirs.push_back(base_dir + rom_dir); }
+    else {
+        for (auto &d : rom_subdirs("")) rom_dirs.push_back(d);
+        for (auto &d : program_rom_dirs(base_dir)) rom_dirs.push_back(d);
     }
-    if (!rom_ok && !lo_set && !hi_set) {            // and in the per-user folder (…/Ensoniq/ASR10emu/roms)
-        if (char *pp = SDL_GetPrefPath("Ensoniq", "EPS16emu")) { rom_ok = m.load_rom_dir(std::string(pp) + "roms"); SDL_free(pp); }
+    std::string rom_found;                          // the folder the ROMs came from
+    bool rom_ok = false;
+    if (lo_set || hi_set) rom_ok = m.load_rom(lo, hi);
+    else {
+        for (auto &d : rom_dirs) if (m.load_rom_dir(d)) { rom_ok = true; rom_found = d; break; }
+        if (!rom_ok) rom_ok = m.load_rom(lo, hi);
+        if (!rom_ok) if (char *pp = SDL_GetPrefPath("Ensoniq", "EPS16emu")) {   // …/Ensoniq/EPS16emu/roms
+            rom_ok = m.load_rom_dir(std::string(pp) + "roms"); SDL_free(pp);
+        }
     }
     if (!rom_ok) {
         fatal("EPS-16 Plus ROM not found.\n\nPut eps16plus-u28.bin and eps16plus-u27.bin in a "
               "\"roms\" folder next to the program"
 #ifdef __APPLE__
-              " or in ~/Library/Application Support/Ensoniq/ASR10emu/roms"
+              " (next to the app, or inside it in Contents/Resources/roms)"
+              " or in ~/Library/Application Support/Ensoniq/EPS16emu/roms."
+              "\n\nIf the app was downloaded, remove the quarantine flag first (Terminal):"
+              "\nxattr -dr com.apple.quarantine <the app>"
+#else
+              "."
 #endif
-              ".");
+              );
         usage(); return 1;
     }
     std::string pref_dir;                           // per-user folder (settings, writable disk images)
@@ -384,21 +405,25 @@ int main(int argc, char **argv) {
     // the executable): an image left in the per-user folder is not used when it has been removed from there.
     std::string os_disk;
     if (disk.empty()) {                             // no image given: use the OS disk of the roms folder
-        os_disk = find_disk(rom_dir);
-        if (os_disk.empty()) if (char *bp = SDL_GetBasePath()) {
-            os_disk = find_disk(std::string(bp) + rom_dir); SDL_free(bp);
-#ifdef __APPLE__
-            // inside the .app bundle the image must not be written to (it would break the
-            // signature): work on a copy in ~/Library/Application Support/Ensoniq/EPS16emu
-            if (!os_disk.empty() && !pref_dir.empty()) {
-                namespace fs = std::filesystem;
-                std::error_code ec;
-                fs::path dst = fs::path(pref_dir) / fs::path(os_disk).filename();
-                if (!fs::exists(dst, ec)) fs::copy_file(os_disk, dst, ec);
-                if (fs::exists(dst, ec)) os_disk = dst.string();
-            }
-#endif
+        std::vector<std::string> os_dirs{ rom_dir };
+        if (custom_rom_dir) { if (!base_dir.empty()) os_dirs.push_back(base_dir + rom_dir); }
+        else {
+            for (auto &d : rom_subdirs("")) os_dirs.push_back(d);
+            for (auto &d : program_os_dirs(base_dir)) os_dirs.push_back(d);
         }
+        for (auto &d : os_dirs) { os_disk = find_disk(d); if (!os_disk.empty()) break; }
+#ifdef __APPLE__
+        // inside the .app bundle the image must not be written to (it would break the
+        // signature): work on a copy in ~/Library/Application Support/Ensoniq/EPS16emu
+        if (!os_disk.empty() && !pref_dir.empty() && !bundle_parent(base_dir).empty()
+            && os_disk.compare(0, base_dir.size(), base_dir) == 0) {
+            namespace fs = std::filesystem;
+            std::error_code ec;
+            fs::path dst = fs::path(pref_dir) / fs::path(os_disk).filename();
+            if (!fs::exists(dst, ec)) fs::copy_file(os_disk, dst, ec);
+            if (fs::exists(dst, ec)) os_disk = dst.string();
+        }
+#endif
         if (!boot_scsi) disk = os_disk;
         if (!disk.empty()) fprintf(stderr, "disk: %s\n", disk.c_str());
         else if (boot_scsi) fprintf(stderr, "boot: SCSI (no floppy)\n");
@@ -424,6 +449,8 @@ int main(int argc, char **argv) {
             std::string d = std::string(bp) + "scsi"; SDL_free(bp);
             if (fs::is_directory(d, ec)) return d;
         }
+        std::string bpar = bundle_parent(base_dir);  // macOS: a "scsi" folder next to the .app
+        if (!bpar.empty() && fs::is_directory(fs::u8path(bpar) / "scsi", ec)) return (fs::u8path(bpar) / "scsi").u8string();
         return "";
     };
     // without SCSI options on the command line the folder chosen in the options is used (below)
@@ -451,9 +478,18 @@ int main(int argc, char **argv) {
         cfg.path = dir + "eps16.cfg";
     }
     // record the program's folder: the VST3 plug-in looks for the ROMs, the OS disk and the
-    // "scsi" folder there too, so that both use the same files
-    if (char *bp = SDL_GetBasePath()) {
-        std::string b = bp; SDL_free(bp);
+    // "scsi" folder there too, so that both use the same files. When the ROMs came from a roms
+    // folder elsewhere (macOS: next to the .app) the folder that holds it is recorded instead.
+    {
+        namespace fs = std::filesystem;
+        std::string b = base_dir;
+        if (!rom_found.empty() && fs::u8path(rom_found).is_absolute()) {
+            std::string f = rom_found;
+            while (f.size() > 1 && (f.back() == '/' || f.back() == '\\')) f.pop_back();
+            std::string leaf = fs::u8path(f).filename().u8string();
+            for (auto &c : leaf) c = (char)tolower((unsigned char)c);
+            b = (leaf == "roms" || leaf == "rom") ? fs::u8path(f).parent_path().u8string() : f;
+        }
         while (b.size() > 1 && (b.back() == '/' || b.back() == '\\')) b.pop_back();
         if (!b.empty() && cfg.app_dir != b) { cfg.app_dir = b; cfg.save(); }
     }
