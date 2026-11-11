@@ -45,6 +45,11 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
   are put on a temporary floppy in the drive, then use LOAD as usual. The drive's eject button ejects.
   File › Save Disk Changes (Ctrl+S) writes the floppy back to its image.
 - **Power:** hold the Power button for about 1 s to restart the machine (or File › Reset).
+- **Boot from SCSI:** Options › SCSI drives › *Boot from* › "SCSI drive (no floppy at start)" starts the
+  machine with an empty floppy drive, booting from a SCSI drive that has the OS on it (command line:
+  `--boot scsi` / `--boot floppy`, this run only). The OS disk image is only ever taken from the `roms`
+  folder next to the program: nothing is fetched from `%APPDATA%`, so deleting it there removes it.
+- **SCSI activity LED:** the red LED above the floppy drive blinks while the SCSI bus is in use.
 - **Up + Down together** jumps to the middle of the value's range (0 for -99..+99, 50 for 0..99), as
   on the real unit: right-click an arrow, or press both arrow keys.
 - **MIDI:** the supplied OS disk is set to MIDI MULTI (instruments 1-8 on channels 9-16); by default

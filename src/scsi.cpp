@@ -247,6 +247,7 @@ void Wd33c93::write(int a, uint8_t v) {
 }
 
 uint8_t Wd33c93::dma_read() {
+    activity.fetch_add(1, std::memory_order_relaxed);
     if (phase != DATA_IN || pos >= buf.size()) return 0;
     uint8_t v = buf[pos++];
     if (xfer_left) set_count(xfer_left - 1);
@@ -258,6 +259,7 @@ uint8_t Wd33c93::dma_read() {
 }
 
 void Wd33c93::dma_write(uint8_t v) {
+    activity.fetch_add(1, std::memory_order_relaxed);
     if (phase != DATA_OUT || pos >= buf.size()) return;
     buf[pos++] = v;
     if (xfer_left) set_count(xfer_left - 1);
@@ -315,6 +317,7 @@ void Wd33c93::command(uint8_t c) {
 }
 
 void Wd33c93::select_and_transfer() {
+    activity.fetch_add(1, std::memory_order_relaxed);
     target = regs[0x15] & 7;
     set_count(((uint32_t)regs[0x12] << 16) | (regs[0x13] << 8) | regs[0x14]);
     if (!dev[target] || target == (regs[0x00] & 7)) {

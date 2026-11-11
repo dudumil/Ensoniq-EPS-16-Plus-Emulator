@@ -268,7 +268,7 @@ static void usage() {
     printf("eps16 [--disk image.img] [--mem MB] [--u28 u28.bin --u27 u27.bin] [--midi-in N] [--midi-out N]\n"
            "      [--list-midi] [--readonly] [--no-fx] [--real-disk-speed] [--scale F]\n"
            "      [--audio-driver ID] [--audio-in] [--list-audio] [--input-wav file.wav]\n"
-           "      [--scsi-dir DIR] [--scsi ID:image[:cd]] [--no-scsi]\n"
+           "      [--scsi-dir DIR] [--scsi ID:image[:cd]] [--no-scsi] [--boot floppy|scsi]\n"
            "Audio and MIDI devices are chosen on the options page (F10) and saved in eps16.cfg.\n");
 }
 
@@ -309,6 +309,7 @@ int main(int argc, char **argv) {
     std::string lo = "roms/eps16plus-u28.bin", hi = "roms/eps16plus-u27.bin", disk;   // lo = even (U28), hi = odd (U27)
     int ram_mb = 2, midi_in_port = -2, midi_out_port = -2;    // 2 MB sound memory = maximum expansion
     bool readonly = false, list_midi = false, nofx = false, real_disk = false;
+    std::string force_boot;
     std::vector<std::string> scsi_dirs, scsi_specs, scsi_files; bool no_scsi = false;
     double scale = 1.0;
     bool audio_in = false, list_audio = false; std::string audio_driver;
@@ -333,6 +334,7 @@ int main(int argc, char **argv) {
         else if (a == "--no-scsi") no_scsi = true;
         else if (a == "--no-fx") nofx = true;
         else if (a == "--real-disk-speed") real_disk = true;
+        else if (a == "--boot") force_boot = next();         // floppy | scsi (this run only)
         else if (a == "--audio-in") audio_in = true;
         else if (a == "--audio-driver") audio_driver = next();
         else if (a == "--list-audio") list_audio = true;
@@ -373,25 +375,34 @@ int main(int argc, char **argv) {
     }
     std::string pref_dir;                           // per-user folder (settings, writable disk images)
     if (char *pp = SDL_GetPrefPath("Ensoniq", "EPS16emu")) { pref_dir = pp; SDL_free(pp); }
-    if (disk.empty()) {                             // no image given: use one from the roms folder
-        disk = find_disk(rom_dir);
-        if (disk.empty() && !pref_dir.empty()) disk = find_disk(pref_dir.substr(0, pref_dir.size() - 1));
-        if (disk.empty() && !pref_dir.empty()) disk = find_disk(pref_dir + "roms");
-        if (disk.empty()) if (char *bp = SDL_GetBasePath()) {
-            disk = find_disk(std::string(bp) + rom_dir); SDL_free(bp);
+    // start-up mode: from the OS disk image (floppy) or from a SCSI drive with no floppy in the drive
+    bool boot_scsi = force_boot == "scsi" ? true : force_boot == "floppy" ? false : [&]() {
+        Settings early; if (!pref_dir.empty()) early.load(pref_dir + "eps16.cfg");
+        return early.boot_scsi;
+    }();
+    // The OS disk image is looked for next to the program only (the "roms" folder in the working directory or next to
+    // the executable): an image left in the per-user folder is not used when it has been removed from there.
+    std::string os_disk;
+    if (disk.empty()) {                             // no image given: use the OS disk of the roms folder
+        os_disk = find_disk(rom_dir);
+        if (os_disk.empty()) if (char *bp = SDL_GetBasePath()) {
+            os_disk = find_disk(std::string(bp) + rom_dir); SDL_free(bp);
 #ifdef __APPLE__
             // inside the .app bundle the image must not be written to (it would break the
-            // signature): work on a copy in ~/Library/Application Support/Ensoniq/ASR10emu
-            if (!disk.empty() && !pref_dir.empty()) {
+            // signature): work on a copy in ~/Library/Application Support/Ensoniq/EPS16emu
+            if (!os_disk.empty() && !pref_dir.empty()) {
                 namespace fs = std::filesystem;
                 std::error_code ec;
-                fs::path dst = fs::path(pref_dir) / fs::path(disk).filename();
-                if (!fs::exists(dst, ec)) fs::copy_file(disk, dst, ec);
-                if (fs::exists(dst, ec)) disk = dst.string();
+                fs::path dst = fs::path(pref_dir) / fs::path(os_disk).filename();
+                if (!fs::exists(dst, ec)) fs::copy_file(os_disk, dst, ec);
+                if (fs::exists(dst, ec)) os_disk = dst.string();
             }
 #endif
         }
+        if (!boot_scsi) disk = os_disk;
         if (!disk.empty()) fprintf(stderr, "disk: %s\n", disk.c_str());
+        else if (boot_scsi) fprintf(stderr, "boot: SCSI (no floppy)\n");
+        else fprintf(stderr, "no OS disk image found in the roms folder\n");
     }
     if (!disk.empty() && !m.fdc.load(disk)) fatal("Cannot open the disk image:\n" + disk);
     m.fx_enabled = !nofx;
@@ -727,7 +738,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> midi_ins, midi_outs;
     NativeMenu nmenu;
     std::string opt_msg, scsi_note;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_N };
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -866,6 +877,9 @@ int main(int argc, char **argv) {
         r[O_NEWMAKE].label = "New drive";
         int id = new_drive_id();
         r[O_NEWMAKE].items.push_back(id < 0 ? "No free SCSI ID in the folder" : "Create HD" + std::to_string(id) + ".img (formatted)");
+        r[O_BOOT].label = "Boot from";
+        r[O_BOOT].items = { "Floppy: the OS disk image", "SCSI drive (no floppy at start)" };
+        r[O_BOOT].sel = edit.boot_scsi ? 1 : 0;
     };
     // a row changed: write it back into `edit` and rebuild the dependent rows
     auto row_changed = [&](int row) {
@@ -898,6 +912,7 @@ int main(int argc, char **argv) {
             }
             break;
         case O_KBCH: edit.kbd_channel = x.sel + 1; break;
+        case O_BOOT: edit.boot_scsi = x.sel == 1; break;
         }
         build_rows();
     };
@@ -914,6 +929,7 @@ int main(int argc, char **argv) {
     };
     auto apply_options = [&]() {           // call with mmx NOT held
         bool scsi_changed = edit.scsi_dir != cfg.scsi_dir;
+        bool boot_changed = edit.boot_scsi != cfg.boot_scsi;
         cfg = edit;
         cfg.midi_in_set = true;
         {
@@ -924,6 +940,15 @@ int main(int argc, char **argv) {
                 std::string d = scsi_dir_of(cfg);
                 if (!d.empty()) m.scsi.attach_dir(d);
                 scsi_note = "SCSI: " + (d.empty() ? std::string("no folder") : d) + "  (restart the EPS to scan the new drives)";
+            }
+            if (boot_changed) {           // restart the EPS the new way: no floppy (SCSI boot) or the OS disk in the drive
+                if (m.fdc.has_disk() && m.fdc.dirty && !readonly) m.fdc.save();
+                if (cfg.boot_scsi) { if (m.fdc.has_disk()) m.eject_disk(); }
+                else if (!m.fdc.has_disk() && !os_disk.empty()) m.insert_disk(os_disk);
+                m.reset();
+                scsi_note = cfg.boot_scsi ? "Restarted: booting from the SCSI drive (no floppy in the drive)"
+                                          : (os_disk.empty() ? "Restarted: no OS disk image found in the roms folder"
+                                                             : "Restarted: booting from the OS disk image");
             }
         }
         midi.apply(cfg.midi_in, cfg.midi_out);
@@ -940,7 +965,7 @@ int main(int argc, char **argv) {
         { "AUDIO OUTPUTS", 0, Y0, O_API, O_B3MAIN },
         { "SAMPLER INPUT", 1, Y0, O_IN, O_INL },
         { "MIDI", 1, Y0 + ROW_H * 3 + 6, O_MIDIIN, O_MIDIMAP },
-        { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_NEWMAKE } };
+        { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_BOOT } };
     auto field_rect = [&](int row) -> SDL_Rect {
         for (const Sect &sc : sects)
             if (row >= sc.first && row <= sc.last)
@@ -971,7 +996,7 @@ int main(int argc, char **argv) {
     };
     // keyboard order of the fields
     const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_B2MAIN, O_B3MAIN,
-                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE };
+                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;
     // window layout: keyboard strip shown or hidden (it is always there while the options are
@@ -1012,7 +1037,9 @@ int main(int argc, char **argv) {
     bool arrows_both = false;                       // right click on Up/Down: both arrows held
     bool kb_down[KEYS] = {};
     int velocity = 100;
-    std::string status = disk.empty() ? "No disk: drop a disk image (.img) or an instrument (.efe) on the window" : "Disk: " + disk;
+    std::string status = disk.empty() ? (boot_scsi ? "Booting from SCSI: no floppy in the drive (drop a disk image on the window to insert one)"
+                                                   : "No OS disk found in the roms folder: drop a disk image (.img) or an instrument (.efe) on the window")
+                                      : "Disk: " + disk;
     uint32_t status_t = SDL_GetTicks();
 
     auto press_key = [&](int k, bool down, int vel) {
@@ -1097,6 +1124,7 @@ int main(int argc, char **argv) {
     while (!quit) {
         Panel pv;                     // snapshot of the machine state for drawing
         bool fdc_dirty, has_disk, scsi_fitted, drive_busy;
+        uint32_t scsi_act = 0;
         std::string scsi_sum, disk_path;
         bool want_options = false, want_apply = false, want_kb_toggle = false, want_open = false;
         {
@@ -1321,7 +1349,7 @@ int main(int argc, char **argv) {
             if (quit_at >= 0 && emu_t >= quit_at) quit = true;
             pv = m.panel;
             fdc_dirty = m.fdc.dirty; has_disk = m.fdc.has_disk(); scsi_fitted = m.scsi_fitted; disk_path = m.fdc.path;
-            drive_busy = m.fdc.motor_on();
+            drive_busy = m.fdc.motor_on(); scsi_act = m.scsi.activity.load(std::memory_order_relaxed);
             m.in_peak = 0;
             scsi_sum = scsi_fitted ? m.scsi.summary() : std::string("off");
             if (shot_at >= 0 && emu_t >= shot_at) shot_at = -2;      // take it after drawing
@@ -1352,7 +1380,7 @@ int main(int argc, char **argv) {
                 if (c.ch == Eps16::AN_VOLUME) rs.volume = (float)c.val;
                 if (c.ch == Eps16::AN_DATA) rs.data = (float)c.val;
             }
-            rs.disk = has_disk; rs.drive_busy = drive_busy;
+            rs.disk = has_disk; rs.drive_busy = drive_busy; rs.scsi_activity = scsi_act;
             rs.power_held = power_held;
             rack.draw(rs, vfd);
         }

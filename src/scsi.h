@@ -4,6 +4,7 @@
 //   RE<id>... / MO<id>...               removable / magneto-optical (writable, removable)
 //   CD<id>[...].iso                      CD-ROM (read only, 2048-byte native blocks)
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -62,6 +63,8 @@ public:
     // attach one file named like ZuluSCSI (HD3.img, CD5.iso...); returns "" if the name doesn't match
     std::string attach_file(const std::string &path, int host_id = 3);
     std::string summary() const;        // one line per attached device
+    // bus activity counter (commands and data bytes), read by the front end for the drive LED
+    std::atomic<uint32_t> activity{0};
     bool force_readonly = false;
     bool attach(int id, const std::string &path, ScsiDevice::Type type, int block_size = 0);
     void raise(uint8_t code);           // queue an interrupt (status code)

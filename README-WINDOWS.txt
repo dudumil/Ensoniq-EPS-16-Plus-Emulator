@@ -87,6 +87,21 @@ SCSI
    CHANGE STORAGE DEVICE (up arrow chooses SCSI 0...). An empty file is
    formatted with FORMAT SCSI DRIVE. Saves go straight to the image.
 
+BOOTING FROM A SCSI DRIVE
+   View > Options > SCSI DRIVES > Boot from: "SCSI drive (no floppy at start)".
+   The EPS-16 Plus then starts with an empty floppy drive and boots from a
+   SCSI drive that has an OS on it (e.g. HD0.img in the "scsi" folder); with the
+   stock ROM and no such drive the display shows PLEASE INSERT DISK. APPLY restarts
+   the EPS-16 Plus at once. "Floppy: the OS disk image" goes back to the usual way.
+   Command line (this run only):  eps16.exe --boot scsi   or   --boot floppy
+   The OS disk image (os130.img) is looked for ONLY in the "roms" folder next to
+   the program: a copy left in %APPDATA%\Ensoniq\EPS16emu is not used, so
+   deleting os130.img from roms really removes it.
+
+SCSI ACTIVITY LED
+   A red LED above the floppy drive blinks whenever the SCSI bus is in use
+   (loading, saving).
+
 SCSI DRIVES FOLDER
    View > Options > SCSI DRIVES > Drive images folder > Choose folder...
    In the folder: HD0.img = disk on ID 0, CD5.iso = CD-ROM on ID 5, etc.

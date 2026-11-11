@@ -25,6 +25,9 @@ struct Settings {
     std::string scsi_dir;
     // the program's own folder, recorded at start so that the VST3 plug-in finds the same files
     std::string app_dir;
+    // start-up: false = the OS is loaded from the OS disk image (floppy); true = no floppy at start, the machine
+    // boots from a SCSI drive
+    bool boot_scsi = false;
 
     std::string path;                  // file the settings were loaded from / are saved to
     bool load(const std::string &file);
