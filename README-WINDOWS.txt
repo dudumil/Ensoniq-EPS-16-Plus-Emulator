@@ -98,9 +98,14 @@ BOOTING FROM A SCSI DRIVE
    the program: a copy left in %APPDATA%\Ensoniq\EPS16emu is not used, so
    deleting os130.img from roms really removes it.
 
+ROMS NOT FOUND
+   If the ROMs are not found, eps16.exe lists the folders it searched and offers
+   "Choose folder...": pick the folder with the ROM files; it is remembered
+   (the OS disk image is looked for there too, and the VST3 plug-in uses it).
+
 SCSI ACTIVITY LED
-   A red LED above the floppy drive blinks whenever the SCSI bus is in use
-   (loading, saving).
+   A red LED above the floppy drive blinks while the SCSI bus is in use: slowly
+   while reading, fast while writing (loading, saving).
 
 SCSI DRIVES FOLDER
    View > Options > SCSI DRIVES > Drive images folder > Choose folder...

@@ -59,7 +59,7 @@ OPTION B - build it yourself on your Mac (sections 1 to 3).
      new formatted disks (50 MB to 2 GB): View > Options > SCSI drives.
    - Boot from SCSI: Options > SCSI drives > Boot from > "SCSI drive (no floppy at start)" starts
      with an empty floppy drive and boots from a SCSI drive that has an OS on it. A red LED above
-     the floppy drive blinks on SCSI activity.
+     the floppy drive blinks on SCSI activity (slowly while reading, fast while writing).
    - MIDI: the supplied OS disk is set to MIDI MULTI (instruments 1-8 on channels 9-16); the
      on-screen keyboard plays on the "Keyboard channel" (Options, default 9).
 

@@ -49,7 +49,8 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
   machine with an empty floppy drive, booting from a SCSI drive that has the OS on it (command line:
   `--boot scsi` / `--boot floppy`, this run only). The OS disk image is only ever taken from the `roms`
   folder next to the program: nothing is fetched from `%APPDATA%`, so deleting it there removes it.
-- **SCSI activity LED:** the red LED above the floppy drive blinks while the SCSI bus is in use.
+- **SCSI activity LED:** the red LED above the floppy drive blinks while the SCSI bus is in use: slowly while reading, fast while writing.
+- **ROMs not found:** the program lists the folders it searched and offers "Choose folder..."; the chosen folder is remembered (the plug-in uses it too).
 - **Up + Down together** jumps to the middle of the value's range (0 for -99..+99, 50 for 0..99), as
   on the real unit: right-click an arrow, or press both arrow keys.
 - **MIDI:** the supplied OS disk is set to MIDI MULTI (instruments 1-8 on channels 9-16); by default
