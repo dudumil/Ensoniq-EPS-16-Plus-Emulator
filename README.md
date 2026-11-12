@@ -7,7 +7,8 @@ boots the original operating system from a floppy image, on an emulated 68000 CP
 sound chip, ES5510 (ESP) effects DSP, DMA controller, floppy controller and SCSI. Nothing of the OS is
 faked, so it behaves like the real instrument.
 
-Available as a **Windows app** and a **VST3 instrument plug-in**.
+Available as an app for **Windows** and **macOS** (Apple Silicon and Intel), and as a **VST3 instrument plug-in**
+for both.
 
 ## What works
 
@@ -25,18 +26,47 @@ Available as a **Windows app** and a **VST3 instrument plug-in**.
 
 ## Download
 
-Get the latest **EPS16-Windows.zip** from the [Releases](../../releases) page. It contains:
+Get the latest release from the [Releases](../../releases) page.
+
+**Windows** (64-bit): **EPS16-Plus-Emulator-Windows.zip**
 
 | File | What it is |
 |---|---|
 | `eps16.exe` | the emulator |
 | `eps16-cli.exe` | command-line version (tests, rendering to WAV) |
 | `VST3/EPS16.vst3` | the VST3 instrument plug-in |
+| `roms/`, `scsi/` | where your ROMs/OS disk and SCSI disk images go |
+
+**macOS** (universal: Apple Silicon and Intel, macOS 11 or later): **EPS16-Plus-Emulator-macOS.zip**
+
+| File | What it is |
+|---|---|
+| `EPS-16-Plus.app` | the emulator |
+| `eps16-cli` | command-line version |
+| `VST3/EPS16.vst3` | the VST3 instrument plug-in |
+| `roms/`, `scsi/` | where your ROMs/OS disk and SCSI disk images go |
+
+### macOS: what you need to know
+
+1. **Keep the folder together.** Unzip and keep `EPS-16-Plus.app` with the `roms` and `scsi` folders next to
+   it (the folder can go anywhere, e.g. in Applications or Documents): the app looks for them there.
+2. **Allow the app to open, once.** The app is not notarized by Apple, so macOS refuses to open it
+   ("cannot verify ..."). In Terminal, type `xattr -dr com.apple.quarantine ` (with a space at the end),
+   drag the unzipped folder onto the window and press Enter. This also covers the plug-in.
+   (Alternatively open the app once, then System Settings › Privacy & Security › **Open Anyway**.)
+3. **ROMs and OS disk** go in `roms/` (see below). If they are not found, the app lists the folders it
+   searched and offers **Choose folder…**; the folder you pick is remembered.
+4. **Audio input** (sampling, Audio Tracks): macOS asks for microphone access the first time; allow it
+   (or later in System Settings › Privacy & Security › Microphone).
+5. **Menus:** File and View are in the macOS menu bar (⌘O open disk, ⌘E eject, ⌘S save disk changes,
+   ⌘R reset, ⌘K keyboard, ⌘, options). The Ctrl shortcuts listed below work too.
+6. **Plug-in:** copy `VST3/EPS16.vst3` to `~/Library/Audio/Plug-Ins/VST3/` (Finder: Go › Go to Folder…)
+   and open the app once first. More details: `README.txt` in the package.
 
 ## You need your own ROM and OS disk
 
 The ROM and the operating system belong to Ensoniq/E-mu and are **not included**. Put them in the
-`roms` folder next to `eps16.exe`:
+`roms` folder next to `eps16.exe` (Windows) or `EPS-16-Plus.app` (macOS):
 
 - the two EPROMs: `eps16plus-u28.bin` (U28, even bytes) and `eps16plus-u27.bin` (U27, odd bytes);
 - the OS floppy image `os130.img` (or any single `.img` in that folder).
@@ -58,9 +88,9 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
   on the real unit: right-click an arrow, or press both arrow keys.
 - **MIDI:** the supplied OS disk is set to MIDI MULTI (instruments 1-8 on channels 9-16); by default
   MIDI In is sent to the "Keyboard channel" (9) set in the options.
-- **Options** (View › Options, Ctrl+O): audio driver (WASAPI, DirectSound, ASIO...), outputs, sample
+- **Options** (View › Options, Ctrl+O): audio driver (Windows: WASAPI, DirectSound, ASIO...; macOS: Core Audio), outputs, sample
   rate, buffer, OEX-6 outputs, sampler input, MIDI ports and channel, and
-  the SCSI drives folder. Settings are kept in `%APPDATA%\Ensoniq\EPS16emu\eps16.cfg`.
+  the SCSI drives folder. Settings are kept in `%APPDATA%\Ensoniq\EPS16emu\eps16.cfg` (macOS: `~/Library/Application Support/Ensoniq/EPS16emu/eps16.cfg`).
 
 **Computer keyboard** (it does not play notes: use a MIDI keyboard or the on-screen keyboard):
 
@@ -88,8 +118,9 @@ FORMAT SCSI DRIVE does it, so it is ready to use. Reset the EPS so that the OS s
 
 ## VST3 plug-in
 
-1. Copy the whole `VST3\EPS16.vst3` folder to `C:\Program Files\Common Files\VST3`.
-2. Run `eps16.exe` once: the plug-in then uses the same ROMs, OS disk, SCSI folder and settings as
+1. Copy the whole `VST3\EPS16.vst3` folder to `C:\Program Files\Common Files\VST3` (Windows) or to
+   `~/Library/Audio/Plug-Ins/VST3/` (macOS).
+2. Run the app (`eps16.exe` / `EPS-16-Plus.app`) once: the plug-in then uses the same ROMs, OS disk, SCSI folder and settings as
    the app (including the MIDI channel: host notes go to channel 9 by default).
 3. Rescan plug-ins in your host and load **EPS-16 Plus Emulator** as an instrument.
 
