@@ -1,22 +1,32 @@
-ENSONIQ EPS-16 PLUS (RACK) EMULATOR FOR macOS (Apple Silicon) - APP AND VST3 PLUG-IN
-=====================================================================================
+ENSONIQ EPS-16 PLUS (RACK) EMULATOR FOR macOS (Apple Silicon and Intel) - APP AND VST3 PLUG-IN
+==============================================================================================
 
-This package contains the source code. There are two ways to get the app and the plug-in:
+This file covers the ready-made package (EPS16-Plus-Emulator-macOS.zip) and building from the source code.
+The app and the plug-in are universal: they run on Apple Silicon and on Intel Macs (macOS 11 or later).
 
-OPTION A - no tools to install (recommended): build it on GitHub
-   1. Open  https://github.com/dudumil/Ensoniq-EPS-16-Plus-Emulator/actions  in a browser (sign in to GitHub), click the "macOS" workflow and
-      then "Run workflow" (or open the latest green run).
-   2. When the run is green, scroll to "Artifacts" at the bottom of the run's page and download
-      "EPS16-macOS" (a zip with EPS-16-Plus-app.zip and EPS16-vst3.zip inside; unzip both).
-   3. Drag EPS-16-Plus.app to Applications. In Terminal, once, remove the "downloaded from the internet" flag:
-         xattr -dr com.apple.quarantine /Applications/EPS-16-Plus.app
-      and copy EPS16.vst3 to ~/Library/Audio/Plug-Ins/VST3/ (same xattr command on it).
-   4. The ROMs and the OS disk are NOT in the download. Put them in a folder called "roms" (or
-      "ROM", any case) next to EPS-16-Plus.app - e.g. in Applications: /Applications/roms - or
-      inside the app (right-click > "Show Package Contents" > Contents > Resources > roms).
-      The app must have had the quarantine flag removed (step 3): otherwise macOS runs it from a
-      hidden temporary copy and the folder next to it is not seen.
-      Open the app once: the plug-in then uses the same files.
+OPTION A - ready-made package (no tools to install)
+   1. Get EPS16-Plus-Emulator-macOS.zip: from the release page, or from GitHub Actions
+      (https://github.com/dudumil/Ensoniq-EPS-16-Plus-Emulator/actions > "macOS" workflow > latest green run > "Artifacts" at the bottom:
+      "EPS16-macOS" holds EPS16-Plus-Emulator-macOS.zip).
+   2. Unzip it. The folder EPS16-macOS contains:
+         EPS-16-Plus.app        the app
+         roms/                  put the ROMs and the OS disk image here
+         scsi/                  SCSI disk / CD-ROM images (ZuluSCSI names: HD0.img, CD5.iso, ...)
+         VST3/EPS16.vst3        the plug-in
+         README.txt, README.md, licenses/
+      Keep the app, roms/ and scsi/ together in this folder (it can go anywhere, e.g. in Applications
+      or in Documents): the app looks for roms/ and scsi/ next to itself.
+   3. Remove the "downloaded from the internet" flag once (Terminal; drag the folder onto the window
+      after typing the command and a space to fill in the path):
+         xattr -dr com.apple.quarantine EPS16-macOS
+      Without it macOS refuses to open the app ("cannot verify ..."), or runs it from a hidden copy
+      where roms/ and scsi/ are not seen. (Instead you can open it once and choose
+      System Settings > Privacy & Security > "Open Anyway", but xattr also covers the plug-in.)
+   4. Put the ROM files (eps16plus-u28.bin and eps16plus-u27.bin) and os130.img in roms/, then open the app.
+      If the ROMs are still not found, the app lists the folders it searched and offers
+      "Choose folder...": pick the folder with the ROMs; it is remembered.
+   5. Plug-in: copy VST3/EPS16.vst3 to ~/Library/Audio/Plug-Ins/VST3/ (Finder: Go > Go to Folder...).
+      Open the app once first: the plug-in then uses the same ROMs, OS disk and scsi folder.
    Skip to section 4 below.
 
 OPTION B - build it yourself on your Mac (sections 1 to 3).
@@ -45,9 +55,9 @@ OPTION B - build it yourself on your Mac (sections 1 to 3).
    When it finishes:
      dist/EPS-16-Plus.app -> drag it to Applications
      dist/eps16-cli       -> command line tool
+     dist/EPS16-Plus-Emulator-macOS.zip -> the package of option A (the app, VST3/, roms/, scsi/, READMEs, licenses)
      the plug-in is installed in ~/Library/Audio/Plug-Ins/VST3/EPS16.vst3
-   No Mac at hand? On GitHub, the "macOS" workflow (Actions tab > macOS > Run workflow) builds
-   the app and the plug-in on a Mac runner; they are under "Artifacts" on the run's page.
+   No Mac at hand? Option A: the GitHub "macOS" workflow builds and checks EPS16-Plus-Emulator-macOS.zip.
 
 4. The app
    - The first time you use the audio input, macOS asks for microphone permission.

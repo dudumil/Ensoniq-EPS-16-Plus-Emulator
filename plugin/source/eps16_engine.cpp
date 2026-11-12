@@ -261,9 +261,10 @@ void Eps16Engine::attach_scsi(const std::string &path) {
 std::string Eps16Engine::scsi_folder_path() const {
     std::error_code ec;
     if (!scsi_folder.empty() && fs::is_directory(fs::u8path(scsi_folder), ec)) return scsi_folder;
+    // the app's folder first (macOS: the "scsi" folder next to the .app), the per-user folder last
+    if (!app_dir.empty() && fs::is_directory(fs::u8path(app_dir) / "scsi", ec)) return (fs::u8path(app_dir) / "scsi").u8string();
     fs::path d = fs::u8path(user_dir) / "scsi";
     if (fs::is_directory(d, ec)) return d.u8string();
-    if (!app_dir.empty() && fs::is_directory(fs::u8path(app_dir) / "scsi", ec)) return (fs::u8path(app_dir) / "scsi").u8string();
     return std::string();
 }
 

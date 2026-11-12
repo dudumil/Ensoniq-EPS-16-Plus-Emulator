@@ -478,14 +478,15 @@ int main(int argc, char **argv) {
     auto default_scsi_dir = [&]() -> std::string {
         namespace fs = std::filesystem;
         std::error_code ec;
+        // the program's folders first (macOS: the "scsi" folder next to the .app), the per-user folder last
         if (fs::is_directory("scsi", ec)) return "scsi";
-        if (!pref_dir.empty() && fs::is_directory(pref_dir + "scsi", ec)) return pref_dir + "scsi";
         if (char *bp = SDL_GetBasePath()) {
             std::string d = std::string(bp) + "scsi"; SDL_free(bp);
             if (fs::is_directory(d, ec)) return d;
         }
-        std::string bpar = bundle_parent(base_dir);  // macOS: a "scsi" folder next to the .app
+        std::string bpar = bundle_parent(base_dir);
         if (!bpar.empty() && fs::is_directory(fs::u8path(bpar) / "scsi", ec)) return (fs::u8path(bpar) / "scsi").u8string();
+        if (!pref_dir.empty() && fs::is_directory(pref_dir + "scsi", ec)) return pref_dir + "scsi";
         return "";
     };
     // without SCSI options on the command line the folder chosen in the options is used (below)

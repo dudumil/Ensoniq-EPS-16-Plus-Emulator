@@ -110,7 +110,7 @@ cmake -S . -B build && cmake --build build -j          # app and command-line ve
 cmake -S plugin -B build-vst && cmake --build build-vst # VST3 plug-in (downloads the VST3 SDK)
 ```
 
-macOS (Apple Silicon): `./build-mac.sh` builds `EPS-16-Plus.app` and the VST3 plug-in into `dist/` (see
+macOS (universal: Apple Silicon and Intel): `./build-mac.sh` builds `EPS-16-Plus.app` and the VST3 plug-in into `dist/` (see
 `README-MAC.txt`); the `macOS` GitHub Actions workflow does the same on a Mac runner.
 
 Cross-compiling for Windows from Linux: see `mingw64.cmake.example` and `build-vst-win-mingw.sh`.

@@ -1,5 +1,5 @@
-# Builds the app and the VST3 plug-in for macOS (Apple Silicon) on a GitHub runner.
-# The files are under "Artifacts" on the run's page.
+# Builds the app and the VST3 plug-in for macOS (universal: Apple Silicon and Intel) on a GitHub
+# runner, checks them, and puts the package (EPS16-Plus-Emulator-macOS.zip) under "Artifacts" on the run's page.
 name: macOS
 on:
   workflow_dispatch:
@@ -10,17 +10,30 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+      - name: Build and package
         run: ./build-mac.sh --no-install
-      - name: Package
+      - name: Check
         run: |
-          cd dist
-          ditto -c -k --keepParent EPS-16-Plus.app EPS-16-Plus-app.zip
-          ditto -c -k --keepParent EPS16.vst3 EPS16-vst3.zip
+          set -e
+          P=dist/EPS16-macOS
+          EXE=$(ls "$P/EPS-16-Plus.app/Contents/MacOS/" | head -1)
+          echo "== architectures"
+          lipo -info "$P/EPS-16-Plus.app/Contents/MacOS/$EXE"
+          lipo -info "$P/VST3/EPS16.vst3/Contents/MacOS/"*
+          lipo "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" -verify_arch arm64 x86_64
+          echo "== linked libraries (only the system's)"
+          otool -L "$P/EPS-16-Plus.app/Contents/MacOS/$EXE"
+          if otool -L "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" | tail -n +2 | grep -v -E "^[[:space:]]+(/System/|/usr/lib/)"; then echo "non-system library"; exit 1; fi
+          echo "== signatures"
+          codesign --verify --deep --strict --verbose=2 "$P/EPS-16-Plus.app"
+          codesign --verify --deep --strict --verbose=2 "$P/VST3/EPS16.vst3"
+          echo "== the app starts (arm64, and x86_64 under Rosetta when available)"
+          "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then arch -x86_64 "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt; else echo "(no Rosetta on this runner)"; fi
+          echo "== package contents"
+          find "$P" -maxdepth 2 | sort
+          if find "$P" -name "*.bin" -o -name "*.img" -o -name "*.iso" | grep .; then echo "ROM or disk image in the package"; exit 1; fi
       - uses: actions/upload-artifact@v4
         with:
           name: EPS16-macOS
-          path: |
-            dist/EPS-16-Plus-app.zip
-            dist/EPS16-vst3.zip
-            dist/eps16-cli
+          path: dist/EPS16-Plus-Emulator-macOS.zip

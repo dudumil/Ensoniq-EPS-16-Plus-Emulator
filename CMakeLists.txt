@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS: Apple Silicon only")
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS: universal (Apple Silicon + Intel)")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "macOS minimum version")
 project(eps16emu C CXX)
 if(APPLE)
