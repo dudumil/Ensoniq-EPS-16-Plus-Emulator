@@ -23,7 +23,7 @@ jobs:
           lipo "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" -verify_arch arm64 x86_64
           echo "== linked libraries (only the system's)"
           otool -L "$P/EPS-16-Plus.app/Contents/MacOS/$EXE"
-          if otool -L "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" | tail -n +2 | grep -v -E "^[[:space:]]+(/System/|/usr/lib/)"; then echo "non-system library"; exit 1; fi
+          if otool -L "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" | grep -E "^[[:space:]]" | grep -v -E "^[[:space:]]+(/System/|/usr/lib/)"; then echo "non-system library"; exit 1; fi
           echo "== signatures"
           codesign --verify --deep --strict --verbose=2 "$P/EPS-16-Plus.app"
           codesign --verify --deep --strict --verbose=2 "$P/VST3/EPS16.vst3"
