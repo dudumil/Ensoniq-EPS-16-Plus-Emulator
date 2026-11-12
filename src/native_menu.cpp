@@ -7,10 +7,42 @@
 #include <shlobj.h>
 #include <vector>
 
-namespace { HWND hwnd_of(SDL_Window *w) {
+namespace {
+HWND hwnd_of(SDL_Window *w) {
     SDL_SysWMinfo wi; SDL_VERSION(&wi.version);
     return SDL_GetWindowWMInfo(w, &wi) ? wi.info.win.window : nullptr;
-} }
+}
+// Aspect ratio while resizing: SDL's window procedure is wrapped so that WM_SIZING (sent, not
+// posted, so SDL's message hook does not see it) can correct the rectangle being dragged.
+float g_aspect = 0;                     // client width / height (0 = free)
+WNDPROC g_prev_proc = nullptr;
+LRESULT CALLBACK aspect_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+    if (msg == WM_SIZING && g_aspect > 0 && lp) {
+        RECT *r = (RECT *)lp, wr, cr;
+        GetWindowRect(h, &wr); GetClientRect(h, &cr);
+        int ncw = (wr.right - wr.left) - (cr.right - cr.left);      // borders, title and menu bar
+        int nch = (wr.bottom - wr.top) - (cr.bottom - cr.top);
+        int cw = (r->right - r->left) - ncw, ch = (r->bottom - r->top) - nch;
+        if (wp == WMSZ_TOP || wp == WMSZ_BOTTOM) {                  // height drives the width
+            cw = (int)(ch * g_aspect + 0.5f);
+            r->right = r->left + cw + ncw;
+        } else {                                                    // width drives the height
+            ch = (int)(cw / g_aspect + 0.5f);
+            if (wp == WMSZ_TOPLEFT || wp == WMSZ_TOPRIGHT) r->top = r->bottom - ch - nch;
+            else r->bottom = r->top + ch + nch;
+        }
+        CallWindowProcW(g_prev_proc, h, msg, wp, lp);
+        return TRUE;
+    }
+    return CallWindowProcW(g_prev_proc, h, msg, wp, lp);
+}
+}
+
+void NativeMenu::set_aspect(int w, int h) {
+    g_aspect = (w > 0 && h > 0) ? (float)w / h : 0;
+    HWND hw = hwnd_of(win);
+    if (hw && !g_prev_proc) g_prev_proc = (WNDPROC)SetWindowLongPtrW(hw, GWLP_WNDPROC, (LONG_PTR)aspect_proc);
+}
 
 bool NativeMenu::init(SDL_Window *w, bool kb) {
     win = w;
@@ -87,6 +119,7 @@ extern bool mac_menu_init(Uint32 event_type, bool kb);
 extern void mac_menu_set_keyboard(bool shown);
 extern std::string mac_open_disk_dialog();
 extern std::string mac_choose_folder_dialog(const std::string &title);
+extern void mac_set_aspect(SDL_Window *w, int aw, int ah);
 static Uint32 g_menu_event = 0;
 
 bool NativeMenu::init(SDL_Window *w, bool kb) {
@@ -101,6 +134,7 @@ NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
     return (Cmd)e.user.code;
 }
 void NativeMenu::set_keyboard(bool shown) { if (ok) mac_menu_set_keyboard(shown); }
+void NativeMenu::set_aspect(int w, int h) { if (win) mac_set_aspect(win, w, h); }
 std::string NativeMenu::open_disk_dialog() { return mac_open_disk_dialog(); }
 std::string NativeMenu::choose_folder_dialog(const std::string &t) { return mac_choose_folder_dialog(t); }
 
@@ -110,6 +144,7 @@ std::string NativeMenu::choose_folder_dialog(const std::string &t) { return mac_
 bool NativeMenu::init(SDL_Window *w, bool) { win = w; return false; }
 NativeMenu::Cmd NativeMenu::command(const SDL_Event &) const { return NONE; }
 void NativeMenu::set_keyboard(bool) {}
+void NativeMenu::set_aspect(int, int) {}   // the program corrects the size after a resize
 std::string NativeMenu::open_disk_dialog() { return ""; }
 std::string NativeMenu::choose_folder_dialog(const std::string &title) {
     // Linux: zenity (GNOME) or kdialog (KDE) when installed

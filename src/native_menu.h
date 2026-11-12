@@ -11,6 +11,9 @@ public:
     bool init(SDL_Window *w, bool keyboard_shown);   // false if the platform has no native menu
     Cmd command(const SDL_Event &e) const;            // the menu command an event carries, or NONE
     void set_keyboard(bool shown);                   // check mark of View > Show Keyboard
+    // keep the window's client area at w:h while the user resizes it (Windows: WM_SIZING,
+    // macOS: NSWindow contentAspectRatio; elsewhere the program corrects the size afterwards)
+    void set_aspect(int w, int h);
     // file dialog for a disk image (Windows/macOS); "" if cancelled or not available
     std::string open_disk_dialog();
     // folder picker (Windows/macOS; zenity or kdialog on Linux); "" if cancelled or not available

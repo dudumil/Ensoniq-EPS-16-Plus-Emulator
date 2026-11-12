@@ -1075,9 +1075,11 @@ int main(int argc, char **argv) {
         float sc = (float)wh / H_cur;
         H_cur = nh; status_y = full ? STATUS_Y : STRIP_Y;
         SDL_RenderSetLogicalSize(R, W, H_cur);
+        nmenu.set_aspect(W, H_cur);
         if (resizable) SDL_SetWindowSize(win, ww, (int)(H_cur * sc + 0.5f));
     };
     nmenu.init(win, show_kb);
+    nmenu.set_aspect(W, H_cur);           // resizing keeps the panel's proportions
     auto toggle_keyboard = [&]() {
         show_kb = !show_kb; cfg.show_keyboard = show_kb; cfg.save();
         nmenu.set_keyboard(show_kb);
@@ -1274,6 +1276,15 @@ int main(int argc, char **argv) {
                 }
                 if (!lk.owns_lock()) lk.lock();
                 switch (e.type) {
+#if !defined(_WIN32) && !defined(__APPLE__)
+                case SDL_WINDOWEVENT:   // no native aspect lock here: correct the height after a resize
+                    if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED
+                        && !(SDL_GetWindowFlags(win) & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP))) {
+                        int ww = e.window.data1, wh = e.window.data2, want = (int)((float)ww * H_cur / W + 0.5f);
+                        if (std::abs(want - wh) > 2) SDL_SetWindowSize(win, ww, want);
+                    }
+                    break;
+#endif
                 case SDL_DROPBEGIN: drop_files.clear(); break;
                 case SDL_DROPFILE: {
                     std::string p = e.drop.file; SDL_free(e.drop.file);
@@ -1434,6 +1445,10 @@ int main(int argc, char **argv) {
         // ------------------------------------------------------------ draw
         uint32_t t = SDL_GetTicks();
         bool blink_on = (t / 250) & 1;
+        // the whole window first: with a window of other proportions (maximized, full screen) the
+        // bars beside the panel would otherwise show old frames
+        SDL_SetRenderDrawColor(R, 0x0c, 0x0d, 0x0e, 255);
+        SDL_RenderClear(R);
         fill(0, 0, W, H_cur, 0x0c0d0e);
         {
             bool held_any[64] = {};

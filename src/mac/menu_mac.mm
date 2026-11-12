@@ -1,6 +1,7 @@
 // macOS menu bar items for the emulator (see native_menu.h)
 #import <Cocoa/Cocoa.h>
 #include <SDL.h>
+#include <SDL_syswm.h>
 #include <string>
 
 static Uint32 g_event = 0;
@@ -102,5 +103,15 @@ std::string mac_choose_folder_dialog(const std::string &title) {
         if ([p runModal] != NSModalResponseOK) return "";
         NSURL *u = [[p URLs] firstObject];
         return u ? std::string([[u path] UTF8String]) : std::string();
+    }
+}
+
+// keep the window's content at aw:ah while the user resizes it
+void mac_set_aspect(SDL_Window *w, int aw, int ah) {
+    SDL_SysWMinfo wi; SDL_VERSION(&wi.version);
+    if (aw <= 0 || ah <= 0 || !SDL_GetWindowWMInfo(w, &wi)) return;
+    @autoreleasepool {
+        NSWindow *nw = wi.info.cocoa.window;
+        [nw setContentAspectRatio:NSMakeSize(aw, ah)];
     }
 }
