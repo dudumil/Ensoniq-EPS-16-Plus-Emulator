@@ -1,5 +1,6 @@
 #include "wd1772.h"
 #include "u8file.h"
+#include "ede_image.h"
 #include <cstdio>
 #include <cstring>
 
@@ -26,6 +27,10 @@ bool Wd1772::load(const std::string &p) {
     bool ok = fread(d.data(), 1, n, f) == (size_t)n;
     fclose(f);
     if (!ok || n <= 0) return false;
+    {   // a Giebler .EDE / .EDA image: work on the raw disk, write the same format back
+        std::vector<uint8_t> raw;
+        if (ede::decode(d, raw, ede_header)) d.swap(raw); else ede_header.clear();
+    }
     disk.swap(d); path = p; dirty = false;
     mirage_ = disk.size() == (size_t)MIRAGE_SIZE;
     heads = mirage_ ? 1 : 2;
@@ -37,7 +42,10 @@ bool Wd1772::save() {
     if (disk.empty() || path.empty() || !dirty) return true;
     FILE *f = u8fopen(path.c_str(), "wb");
     if (!f) return false;
-    bool ok = fwrite(disk.data(), 1, disk.size(), f) == disk.size();
+    std::vector<uint8_t> packed;
+    if (!ede_header.empty()) packed = ede::encode(disk, ede_header);
+    const std::vector<uint8_t> &out = packed.empty() ? disk : packed;
+    bool ok = fwrite(out.data(), 1, out.size(), f) == out.size();
     fclose(f);
     if (ok) dirty = false;
     return ok;

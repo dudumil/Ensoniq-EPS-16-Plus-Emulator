@@ -104,6 +104,19 @@ MIRAGE DISKS
    for the OS disk (keep os130.img in the drive and press Enter), then for the
    sound and for the Mirage disk: drop the Mirage image and press Enter.
 
+DISK IMAGES
+   Besides raw .img images, Giebler .EDE (800 KB) and .EDA (1600 KB) disk images
+   can go in the drive: drop them on the window, or File > Open Disk Image.
+   Changes are written back in the same format. In the VST3 plug-in, click the
+   drive slot to choose a file (or drop it on the panel, if the host allows).
+
+RECORD A SONG TO WAV
+   File > Record Song to WAV (Ctrl+W): choose a folder. The recording waits,
+   starts when you press Play on the sequencer and ends when the song ends or
+   you press Stop (it goes on until the sound has died away). The 24-bit WAV
+   gets the name of the song / sequence shown on the Seq/Song page (open that
+   page once so that the name is known). Ctrl+W again cancels or stops.
+
 ROMS NOT FOUND
    If the ROMs are not found, eps16.exe lists the folders it searched and offers
    "Choose folder...": pick the folder with the ROM files; it is remembered

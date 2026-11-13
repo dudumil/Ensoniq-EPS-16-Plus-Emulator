@@ -7,7 +7,7 @@
 
 class NativeMenu {
 public:
-    enum Cmd { NONE = 0, OPEN_DISK, EJECT_DISK, SAVE_DISK, RESET, EXIT, TOGGLE_KEYBOARD, OPTIONS };
+    enum Cmd { NONE = 0, OPEN_DISK, EJECT_DISK, SAVE_DISK, RESET, EXIT, TOGGLE_KEYBOARD, OPTIONS, RECORD_WAV };
     bool init(SDL_Window *w, bool keyboard_shown);   // false if the platform has no native menu
     Cmd command(const SDL_Event &e) const;            // the menu command an event carries, or NONE
     void set_keyboard(bool shown);                   // check mark of View > Show Keyboard

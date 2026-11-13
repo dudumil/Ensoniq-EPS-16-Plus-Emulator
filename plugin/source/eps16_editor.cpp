@@ -1,6 +1,7 @@
 #include "eps16_editor.h"
 #include "efe_disk.h"
 #include "vstgui/lib/platform/iplatformbitmap.h"
+#include "vstgui/lib/cfileselector.h"
 #include <cstring>
 #include <chrono>
 #include <algorithm>
@@ -16,6 +17,14 @@ static uint32_t now_ms() {
     return (uint32_t)duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
 
+// disk images (.img, Giebler .ede/.eda, SCSI images) go in the drive / on the SCSI bus; instrument
+// files (.efe/.efa) given together go on one temporary floppy
+static void put_in_drive(Plugin *plug, const std::vector<std::string> &files) {
+    std::vector<std::string> efes;
+    for (auto &f : files) { if (efe::is_single_file(f)) efes.push_back(f); else plug->engine().insert_disk(f); }
+    if (!efes.empty()) plug->engine().insert_files(efes);
+}
+
 // ------------------------------------------------------------------ drop target
 class RackDrop : public NonAtomicReferenceCounted, public DropTargetAdapter {
 public:
@@ -24,16 +33,15 @@ public:
     DragOperation onDragMove(DragEventData d) override { return has_file(d) ? DragOperation::Copy : DragOperation::None; }
     bool onDrop(DragEventData d) override {
         bool any = false;
-        std::vector<std::string> efes;   // instrument files dropped together go on one floppy
+        std::vector<std::string> files;
         for (uint32_t i = 0; i < d.drag->getCount(); i++) {
             const void *buf = nullptr; IDataPackage::Type t;
             d.drag->getData(i, buf, t);
             if (t != IDataPackage::kFilePath || !buf) continue;
-            std::string f = (const char *)buf;
-            if (efe::is_single_file(f)) efes.push_back(f); else plug->engine().insert_disk(f);
+            files.push_back((const char *)buf);
             any = true;
         }
-        if (!efes.empty()) plug->engine().insert_files(efes);
+        put_in_drive(plug, files);
         return any;
     }
 private:
@@ -203,8 +211,27 @@ bool PLUGIN_API Editor::open(void *parent, const PlatformType &type) {
     frame->open(parent, type);
 
     rack = new RackView(CRect(0, 0, W, rack_height()), plug, W * 2);    // 2x pixels: sharp on Retina
-    // a click on the drive slot: how to put a disk in (there are no buttons, as on the unit)
-    rack->on_drive = [this]() { plug->engine().message("Drop a disk image (.img) or an instrument (.efe/.efa) on the panel to put it in the drive"); };
+    // a click on the drive slot opens a file chooser (dropping files on the panel works too, where
+    // the host passes drops on to plug-ins)
+    rack->on_drive = [this]() {
+        CNewFileSelector *sel = frame ? CNewFileSelector::create(frame, CNewFileSelector::kSelectFile) : nullptr;
+        if (!sel) { plug->engine().message("Drop a disk image (.img, .ede, .eda) or an instrument (.efe/.efa) on the panel to put it in the drive"); return; }
+        sel->setTitle("Put a disk image or instrument files in the drive");
+        sel->setAllowMultiFileSelection(true);
+        sel->addFileExtension(CFileExtension("Disk images and instruments", "img"));
+        sel->addFileExtension(CFileExtension("Giebler disk image (EPS / EPS-16 Plus / ASR)", "ede"));
+        sel->addFileExtension(CFileExtension("Giebler disk image (ASR-10 HD)", "eda"));
+        sel->addFileExtension(CFileExtension("Ensoniq instrument file", "efe"));
+        sel->addFileExtension(CFileExtension("Ensoniq instrument file (ASR)", "efa"));
+        sel->addFileExtension(CNewFileSelector::getAllFilesExtension());
+        Plugin *pl = plug;
+        sel->run([pl](CNewFileSelector *fs) {
+            std::vector<std::string> files;
+            for (uint32_t i = 0; i < fs->getNumSelectedFiles(); i++) if (const char *f = fs->getSelectedFile(i)) files.push_back(f);
+            put_in_drive(pl, files);
+        });
+        sel->forget();
+    };
     frame->addView(rack);
 
     // messages (disk inserted, errors...) appear for a few seconds over the bottom of the panel

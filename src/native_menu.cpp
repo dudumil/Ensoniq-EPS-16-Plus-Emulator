@@ -53,6 +53,8 @@ bool NativeMenu::init(SDL_Window *w, bool kb) {
     AppendMenuW(file, MF_STRING, EJECT_DISK, L"&Eject Disk\tCtrl+E");
     AppendMenuW(file, MF_STRING, SAVE_DISK, L"&Save Disk Changes\tCtrl+S");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(file, MF_STRING, RECORD_WAV, L"Record Song to &WAV...\tCtrl+W");
+    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, RESET, L"&Reset\tCtrl+R");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, EXIT, L"E&xit\tAlt+F4");
@@ -74,7 +76,7 @@ NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
     const auto &m = e.syswm.msg->msg.win;
     if (m.msg != WM_COMMAND || HIWORD(m.wParam) != 0) return NONE;
     int id = LOWORD(m.wParam);
-    return id >= OPEN_DISK && id <= OPTIONS ? (Cmd)id : NONE;
+    return id >= OPEN_DISK && id <= RECORD_WAV ? (Cmd)id : NONE;
 }
 
 void NativeMenu::set_keyboard(bool shown) {
@@ -84,7 +86,7 @@ void NativeMenu::set_keyboard(bool shown) {
 std::string NativeMenu::open_disk_dialog() {
     wchar_t buf[1024] = L"";
     OPENFILENAMEW of{}; of.lStructSize = sizeof of; of.hwndOwner = hwnd_of(win);
-    of.lpstrFilter = L"Disk images and instruments (*.img;*.efe;*.efa;*.iso;*.hda)\0*.img;*.efe;*.efa;*.iso;*.hda\0All files (*.*)\0*.*\0";
+    of.lpstrFilter = L"Disk images and instruments (*.img;*.ede;*.eda;*.efe;*.efa;*.iso;*.hda)\0*.img;*.ede;*.eda;*.efe;*.efa;*.iso;*.hda\0All files (*.*)\0*.*\0";
     of.lpstrFile = buf; of.nMaxFile = 1024; of.lpstrTitle = L"Open disk image";
     of.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
     if (!GetOpenFileNameW(&of)) return "";

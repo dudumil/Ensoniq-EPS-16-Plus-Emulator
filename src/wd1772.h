@@ -26,6 +26,7 @@ public:
     int  first_sector = 0;              // sector number of the first sector on a track
     bool dirty = false;
     std::string path;
+    std::vector<uint8_t> ede_header;    // not empty: the file is a Giebler .EDE/.EDA image (see ede_image.h)
     std::function<void(bool)> irq_cb, drq_cb;
     bool log = false;
     double cpu_clock = 10000000.0;

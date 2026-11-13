@@ -14,6 +14,7 @@ static NSMenuItem *g_kb_item = nil;
 - (void)resetMachine:(id)sender;
 - (void)toggleKeyboard:(id)sender;
 - (void)showOptions:(id)sender;
+- (void)recordWav:(id)sender;
 @end
 
 static void push_cmd(int c) {
@@ -29,6 +30,7 @@ static void push_cmd(int c) {
 - (void)resetMachine:(id)sender { push_cmd(4); }
 - (void)toggleKeyboard:(id)sender { push_cmd(6); }
 - (void)showOptions:(id)sender { push_cmd(7); }
+- (void)recordWav:(id)sender { push_cmd(8); }
 @end
 
 static EmuMenuTarget *g_target = nil;
@@ -55,6 +57,8 @@ bool mac_menu_init(Uint32 event_type, bool kb) {
         add_item(file, @"Open Disk Image…", @selector(openDisk:), @"o");
         add_item(file, @"Eject Disk", @selector(ejectDisk:), @"e");
         add_item(file, @"Save Disk Changes", @selector(saveDisk:), @"s");
+        [file addItem:[NSMenuItem separatorItem]];
+        add_item(file, @"Record Song to WAV…", @selector(recordWav:), @"R");   // shift-cmd-R
         [file addItem:[NSMenuItem separatorItem]];
         add_item(file, @"Reset", @selector(resetMachine:), @"r");
         NSMenuItem *fileItem = [[NSMenuItem alloc] initWithTitle:@"File" action:nil keyEquivalent:@""];
