@@ -19,6 +19,7 @@ struct Settings {
     bool midi_remap = true;            // MIDI In channel messages go to kbd_channel
     // window
     bool show_keyboard = true;         // strip with the wheels, Patch Select and the keyboard
+    bool skin_keyboard = false;        // the window shows the keyboard model (EPS-16 Plus keyboard) instead of the rack
     // SCSI drives: folder with ZuluSCSI-style images (HD0.img, CD5.iso ...); "" = the "scsi" folder
     // next to the program
     std::string scsi_dir;

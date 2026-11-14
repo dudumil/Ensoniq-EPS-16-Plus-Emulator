@@ -108,7 +108,8 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
 | Arrows | panel arrows |
 | Enter / Esc | YES•ENTER / NO•CANCEL |
 | F11 / F12 | left / right Patch Select |
-| F9 | show/hide the on-screen keyboard |
+| F9 | show/hide the on-screen keyboard (rack) |
+| Ctrl+K | keyboard model / rack (View > Keyboard Model) |
 | Ctrl+E / Ctrl+S / Ctrl+R | eject / save the floppy / reset |
 | Ctrl+F / Ctrl+I | effects on/off / audio input on/off |
 

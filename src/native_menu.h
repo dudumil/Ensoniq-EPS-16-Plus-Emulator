@@ -7,10 +7,11 @@
 
 class NativeMenu {
 public:
-    enum Cmd { NONE = 0, OPEN_DISK, EJECT_DISK, SAVE_DISK, RESET, EXIT, TOGGLE_KEYBOARD, OPTIONS, RECORD_WAV };
-    bool init(SDL_Window *w, bool keyboard_shown);   // false if the platform has no native menu
+    enum Cmd { NONE = 0, OPEN_DISK, EJECT_DISK, SAVE_DISK, RESET, EXIT, TOGGLE_KEYBOARD, OPTIONS, RECORD_WAV, TOGGLE_SKIN };
+    bool init(SDL_Window *w, bool keyboard_shown, bool keyboard_skin = false);   // false if the platform has no native menu
     Cmd command(const SDL_Event &e) const;            // the menu command an event carries, or NONE
     void set_keyboard(bool shown);                   // check mark of View > Show Keyboard
+    void set_skin(bool keyboard_model);              // check mark of View > Keyboard Model
     // keep the window's client area at w:h while the user resizes it (Windows: WM_SIZING,
     // macOS: NSWindow contentAspectRatio; elsewhere the program corrects the size afterwards)
     void set_aspect(int w, int h);

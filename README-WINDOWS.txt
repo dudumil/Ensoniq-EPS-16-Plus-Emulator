@@ -49,8 +49,11 @@ SAMPLING
 WINDOW MENUS
    File: Open Disk Image (choose an .img), Eject Disk (Ctrl+E), Save Disk
          Changes (Ctrl+S), Reset (Ctrl+R), Exit.
-   View: Show Keyboard (F9) shows/hides the on-screen keyboard; Options
-         (Ctrl+O) opens the audio and MIDI options.
+   View: Keyboard Model (Ctrl+K) shows the EPS-16 Plus keyboard model (with the
+         OEX-6 output expander) instead of the rack: play its keys, wheels and
+         Patch Select with the mouse, the disk goes in the drive on the left;
+         Show Keyboard (F9) shows/hides the on-screen keyboard under the rack;
+         Options (Ctrl+O) opens the audio and MIDI options.
    Messages (disk inserted, ejected...) appear for a few seconds at the bottom;
    the window title shows the disk in the drive, with "*" if it has unsaved
    changes.
@@ -146,6 +149,7 @@ or the on-screen keyboard)
      one of the arrows.
    F11/F12 = Patch Select left/right (you can press both)
    F9 = hide/show the on-screen keyboard (View > Show Keyboard)
+   Ctrl+K = keyboard model / rack (View > Keyboard Model)
    Ctrl+F effects (ESP) on/off,  Ctrl+I input on/off,  Ctrl+R reset
    With the mouse: click the buttons and keys (lower = louder), drag Volume,
    Data Entry and the wheels (MIDI pitch bend and modulation).
