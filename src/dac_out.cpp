@@ -26,6 +26,9 @@ double bessel_i0(double x) {           // for the Kaiser window
 //   up for the hold's droop at the EPS-16 Plus's 44.6 kHz (flat within 0.2 dB to 20 kHz), and
 //   cuts the images above (-11 dB at 30 kHz, -31 dB at 40 kHz with the hold).
 // The output then reaches the jack through R150 2k, the mute JFET and R110 220 Ohm.
+// OEX-6: the same values after each bus's TDA1541A (I/V R53 1.78k || C87 820 pF, C82 10 uF,
+// R46 / C80 2200 pF / R47 / C83 3900 pF / R50 5.90k, R51 17.8k, C85 100 pF on a TL072),
+// then R48 680 Ohm to the jack (no mute).
 const double IV_TAU = 1.78e3 * 820e-12;
 const double R126 = 5.90e3, C137 = 2200e-12, R148 = 5.90e3, C136 = 3900e-12, R147 = 5.90e3, R149 = 17.8e3, C135 = 100e-12;
 const double COUPLING_TAU = 10e-6 * (R126 + R148);         // C110 into the filter: 1.35 Hz high-pass

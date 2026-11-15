@@ -11,7 +11,8 @@
 //     whole sample period (zero-order hold);
 //   - the analog section of the EPS-16 Plus main board (see dac_out.cpp): the I/V converter,
 //     the 3rd-order low-pass that makes up for the hold's droop and removes the images, the
-//     coupling capacitor. The ASR-10's is taken to be the same (no schematic of it is known).
+//     coupling capacitor. The OEX-6 has the same circuit after each of its three TDA1541As
+//     (OEX-6 schematic); the ASR-10's main board is taken to be the same (no schematic of it).
 // The analog output is then band-limited to the computer's rate and sampled there (polyphase,
 // windowed sinc).
 // IDEAL: a perfect converter (no 16-bit step, no hold, no analog section): only the
