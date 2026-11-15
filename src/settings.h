@@ -18,6 +18,7 @@ struct Settings {
     int kbd_channel = 9;               // MIDI channel of the on-screen keyboard and wheels (1-16)
     bool midi_remap = true;            // MIDI In channel messages go to kbd_channel
     // window
+    bool dac_tda = true;               // outputs through the TDA1541A converters (else a perfect converter)
     bool show_keyboard = true;         // strip with the wheels, Patch Select and the keyboard
     bool skin_keyboard = false;        // the window shows the keyboard model (EPS-16 Plus keyboard) instead of the rack
     // SCSI drives: folder with ZuluSCSI-style images (HD0.img, CD5.iso ...); "" = the "scsi" folder

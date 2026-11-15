@@ -26,6 +26,7 @@
 #include "hd63450.h"
 #include "es5505.h"
 #include "es5510.h"
+#include "dac_out.h"
 #include "panel.h"
 #include "scsi.h"
 
@@ -52,6 +53,7 @@ public:
     std::vector<float> audio;              // interleaved L/R at out_rate
     bool aux_to_main[3] = { true, true, true };
     std::vector<float> audio_aux;          // 6 channels when an output is taken out of the mix
+    DacOut dac;                            // the TDA1541A converters, and the step to out_rate
     bool aux_separate() const { return !aux_to_main[0] || !aux_to_main[1] || !aux_to_main[2]; }
     bool fx_enabled = true;
     bool aux1_mix = true;                  // AUX 1 bus (OTIS channel 1) mixed dry into the main outputs
@@ -99,8 +101,6 @@ private:
     float next_input();
     uint64_t ser_clock = 0, ser_next = 0;  // OTIS clocks, for the serial word timing
     double esp_rate = 44643;
-    double resamp_pos = 0;
-    float last[8] = {};
     std::mutex input_mx;
     std::deque<float> input;
     double input_rate = 44100, in_pos = 0;

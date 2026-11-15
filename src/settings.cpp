@@ -36,6 +36,7 @@ bool Settings::load(const std::string &file) {
         else if (k == "midi_in_to_keyboard_channel") midi_remap = n != 0;
         else if (k == "show_keyboard") show_keyboard = n != 0;
         else if (k == "skin") skin_keyboard = v == "keyboard";
+        else if (k == "dac") dac_tda = (v != "ideal");
         else if (k == "scsi_dir") scsi_dir = v;
         else if (k == "app_dir") app_dir = v;
         else if (k == "rom_dir") rom_dir = v;
@@ -66,6 +67,7 @@ bool Settings::save() const {
     fprintf(f, "# OEX-6 outputs: aux1_out = AUX 1, aux2_out = BUS 2, aux3_out = BUS 3\n");
     fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / View > Show Keyboard)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
     fprintf(f, "# keyboard = the window shows the EPS-16 Plus keyboard model, rack = the rack (View > Keyboard Model)\nskin=%s\n", skin_keyboard ? "keyboard" : "rack");
+    fprintf(f, "# dac: tda1541a (the converters of the EPS-16 Plus and OEX-6) or ideal (a perfect converter)\ndac=%s\n", dac_tda ? "tda1541a" : "ideal");
     fprintf(f, "# folder of the SCSI drive images (HD0.img, CD5.iso ...); empty = \"scsi\" next to the program\nscsi_dir=%s\n", scsi_dir.c_str());
     fprintf(f, "# start-up: floppy = load the OS disk image into the floppy drive; scsi = no floppy, boot from a SCSI drive\nboot=%s\n", boot_scsi ? "scsi" : "floppy");
     fprintf(f, "# folder of the program (written by it; the VST3 plug-in looks for the ROMs and disks there)\napp_dir=%s\n", app_dir.c_str());
