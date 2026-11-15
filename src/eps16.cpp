@@ -355,16 +355,8 @@ void Eps16::otis_frame() {
     for (int a = 0; a < 3; a++)
         if (!aux_to_main[a]) { cur[2 + a * 2] = aux[a * 2]; cur[3 + a * 2] = aux[a * 2 + 1]; }
     const bool sep = aux_separate();
-    double step = otis.sample_rate(otis_clock) / out_rate;
-    while (resamp_pos < 1.0) {
-        float t = (float)resamp_pos;
-        audio.push_back(last[0] + (cur[0] - last[0]) * t);
-        audio.push_back(last[1] + (cur[1] - last[1]) * t);
-        if (sep) for (int i = 2; i < 8; i++) audio_aux.push_back(last[i] + (cur[i] - last[i]) * t);
-        resamp_pos += step;
-    }
-    resamp_pos -= 1.0;
-    for (int i = 0; i < 8; i++) last[i] = cur[i];
+    // the D/A converters (main, the three OEX-6 buses) and the computer's sample rate
+    dac.push(cur, sep, otis.sample_rate(otis_clock), out_rate, audio, audio_aux);
 }
 
 // ------------------------------------------------------------------ disk

@@ -801,6 +801,7 @@ int main(int argc, char **argv) {
         m.bus_to_main[0] = m.bus_to_main[1] = true;   // BUS 2/3 always reach the main mix, as on the EPS (the OS decides what goes there)
         cur_rate = ok ? aio.rate() : 48000;
         m.out_rate = cur_rate;
+        m.dac.set_model(cfg.dac_tda ? DacOut::TDA1541A : DacOut::IDEAL);
         unsigned buf = ok ? aio.buffer() : 256;
         target_frames = std::max(2 * buf, (unsigned)(cur_rate * 0.006)) + 32;   // ~6 ms ahead of the device
         underruns = 0;
@@ -824,7 +825,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> midi_ins, midi_outs;
     NativeMenu nmenu;
     std::string opt_msg, scsi_note;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_N };
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DAC, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -960,6 +961,9 @@ int main(int argc, char **argv) {
         r[O_BOOT].label = "Boot from";
         r[O_BOOT].items = { "Floppy: the OS disk image", "SCSI drive (no floppy at start)" };
         r[O_BOOT].sel = edit.boot_scsi ? 1 : 0;
+        r[O_DAC].label = "D/A converters";
+        r[O_DAC].items = { "TDA1541A (as the EPS-16 Plus)", "Ideal (perfect converter)" };
+        r[O_DAC].sel = edit.dac_tda ? 0 : 1;
     };
     // a row changed: write it back into `edit` and rebuild the dependent rows
     auto row_changed = [&](int row) {
@@ -992,6 +996,7 @@ int main(int argc, char **argv) {
             break;
         case O_KBCH: edit.kbd_channel = x.sel + 1; break;
         case O_BOOT: edit.boot_scsi = x.sel == 1; break;
+        case O_DAC: edit.dac_tda = x.sel == 0; break;
         }
         build_rows();
     };
@@ -1040,11 +1045,12 @@ int main(int argc, char **argv) {
     const SDL_Rect btn_apply{OX + OW - 214, OY + OH - 46, 70, 26}, btn_close{OX + OW - 112, OY + OH - 46, 70, 26};
     struct Sect { const char *title; int col, y, first, last; };
     // sections: title, column, top, first and last row
-    const Sect sects[4] = {
+    const Sect sects[5] = {
         { "AUDIO OUTPUTS", 0, Y0, O_API, O_AUX3 },
         { "SAMPLER INPUT", 1, Y0, O_IN, O_INL },
         { "MIDI", 1, Y0 + ROW_H * 3 + 6, O_MIDIIN, O_MIDIMAP },
-        { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_BOOT } };
+        { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_BOOT },
+        { "SOUND", 0, Y0 + ROW_H * 9 + 6, O_DAC, O_DAC } };
     auto field_rect = [&](int row) -> SDL_Rect {
         for (const Sect &sc : sects)
             if (row >= sc.first && row <= sc.last)
@@ -1075,7 +1081,7 @@ int main(int argc, char **argv) {
     };
     // keyboard order of the fields
     const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3,
-                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT };
+                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DAC };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;
     // window layout: keyboard strip shown or hidden (it is always there while the options are
