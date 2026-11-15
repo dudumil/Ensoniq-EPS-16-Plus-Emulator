@@ -1,21 +1,21 @@
 // The machine's D/A converters and the step to the computer's sample rate.
 //
 // The ASR-10 and the EPS-16 Plus convert with Philips TDA1541A DACs: one for the main outputs
-// and one for each bus of the OEX-6 output expander (4 chips, 8 channels). Model of one channel
-// (Philips TDA1541A data sheet, February 1991):
-//   - 16-bit two's complement words (time-multiplexed I2S mode, OB/TWC at +5 V); a longer word
-//     loses its low bits;
-//   - the output current is the sum of the bits' currents: the 6 upper bits come from three
-//     2-bit dynamic element matching dividers (very accurate), the 10 lower bits from an emitter
-//     scaled passive divider; each chip has its own small weight errors, within the data sheet's
-//     linearity (differential and integral errors 0.5 LSB typical, 1 LSB maximum);
-//   - no oversampling filter: the output holds each word for a whole sample period (zero-order
-//     hold), then the I/V converter of the data sheet's circuit (1.8 kOhm || 2.2 nF, a pole at
-//     40 kHz); noise 110 dB under full scale.
+// and one for each bus of the OEX-6 output expander (4 chips, 8 channels). Model of one channel:
+//   - the TDA1541A (data sheet, February 1991): 16-bit two's complement words (time-multiplexed
+//     I2S mode); a longer word loses its low bits. The output current is the sum of the bits'
+//     currents: the 6 upper bits from three 2-bit dynamic element matching dividers (very
+//     accurate), the 10 lower bits from an emitter scaled passive divider; each chip has its own
+//     small weight errors, within the data sheet's linearity (0.5 LSB typical, 1 LSB maximum).
+//     Noise 110 dB under full scale. No oversampling filter: the output holds each word for a
+//     whole sample period (zero-order hold);
+//   - the analog section of the EPS-16 Plus main board (see dac_out.cpp): the I/V converter,
+//     the 3rd-order low-pass that makes up for the hold's droop and removes the images, the
+//     coupling capacitor. The ASR-10's is taken to be the same (no schematic of it is known).
 // The analog output is then band-limited to the computer's rate and sampled there (polyphase,
-// windowed sinc), so the hold's treble droop and, at 88.2/96 kHz, its images above half the
-// machine's rate are heard as from the real outputs.
-// IDEAL: a perfect converter (no 16-bit step, no hold): only the band-limited resampling.
+// windowed sinc).
+// IDEAL: a perfect converter (no 16-bit step, no hold, no analog section): only the
+// band-limited resampling.
 #pragma once
 #include <cstdint>
 #include <vector>
@@ -47,6 +47,9 @@ private:
     int ka = 0, kb = 0;                 // support, in input samples
     double kernel_rate_in = 0, kernel_rate_out = 0;
     void make_kernel(double in_rate, double out_rate);
+    struct Cached { double in, out; Model model; std::vector<float> kern; int ka, kb; };
+    std::vector<Cached> cache;
+    float hp_x[CH] = {}, hp_y[CH] = {};    // the coupling capacitor after the I/V converter
 
     // history of the analog values (input samples)
     static const int HIST = 256;        // power of two, > A + B
