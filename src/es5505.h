@@ -22,6 +22,9 @@ public:
     double sample_rate(double clock) const { return clock / (16.0 * (m_active + 1)); }
 
     std::function<uint16_t(int bank, uint32_t addr)> read_sample;   // 16-bit word, 20-bit address
+    // the same as a plain function (used instead when set: no std::function call per sample)
+    uint16_t (*read_sample_fn)(void *ctx, int bank, uint32_t addr) = nullptr;
+    void *read_sample_ctx = nullptr;
     std::function<uint16_t()> read_pot;                            // 10-bit POT A/D
     std::function<void(bool)> irq_cb;                              // IRQ line asserted (true)
     bool irq_pending() const { return !(m_irqv & 0x80); }

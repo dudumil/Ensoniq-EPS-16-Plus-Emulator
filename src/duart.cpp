@@ -152,14 +152,13 @@ void Duart::run(double clocks) {
     }
     for (int c = 0; c < 2; c++) {
         Chan &ch = chan[c];
-        double bc = byte_clocks(c);
         // transmitter
         if (ch.tx_busy) {
             ch.tx_t -= clocks;
             if (ch.tx_t <= 0) { ch.tx_busy = false; if (tx) tx(c, ch.tx_sh); update_sr(c); }
         }
         if (!ch.tx_busy && ch.thr_full && ch.tx_en) {
-            ch.tx_sh = ch.thr; ch.thr_full = false; ch.tx_busy = true; ch.tx_t = bc;
+            ch.tx_sh = ch.thr; ch.thr_full = false; ch.tx_busy = true; ch.tx_t = byte_clocks(c);
             update_sr(c);
         }
         // receiver
@@ -177,7 +176,7 @@ void Duart::run(double clocks) {
                 else { ch.sr |= 0x10; if (dbg) fprintf(stderr, "[DUART] ch%d overrun, lost %02x\n", c, b); }   // overrun
                 update_sr(c);
             } else if (dbg) fprintf(stderr, "[DUART] ch%d receiver off, lost %02x\n", c, b);
-            ch.rx_t = bc;
+            ch.rx_t = byte_clocks(c);
         }
     }
 }
