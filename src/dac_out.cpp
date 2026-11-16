@@ -26,6 +26,9 @@ double bessel_i0(double x) {           // for the Kaiser window
 //   up for the hold's droop at the EPS-16 Plus's 44.6 kHz (flat within 0.2 dB to 20 kHz), and
 //   cuts the images above (-11 dB at 30 kHz, -31 dB at 40 kHz with the hold).
 // The output then reaches the jack through R150 2k, the mute JFET and R110 220 Ohm.
+// OEX-6: the same values after each bus's TDA1541A (I/V R53 1.78k || C87 820 pF, C82 10 uF,
+// R46 / C80 2200 pF / R47 / C83 3900 pF / R50 5.90k, R51 17.8k, C85 100 pF on a TL072),
+// then R48 680 Ohm to the jack (no mute).
 const double IV_TAU = 1.78e3 * 820e-12;
 const double R126 = 5.90e3, C137 = 2200e-12, R148 = 5.90e3, C136 = 3900e-12, R147 = 5.90e3, R149 = 17.8e3, C135 = 100e-12;
 const double COUPLING_TAU = 10e-6 * (R126 + R148);         // C110 into the filter: 1.35 Hz high-pass
@@ -105,7 +108,7 @@ float DacOut::convert(int ch, float x) const {
 void DacOut::make_kernel(double in_rate, double out_rate) {
     kernel_rate_in = in_rate; kernel_rate_out = out_rate;
     for (const Cached &c : cache)              // (the sound chip's rate changes back and forth: when sampling)
-        if (c.in == in_rate && c.out == out_rate && c.model == model) { kern = c.kern; ka = c.ka; kb = c.kb; return; }
+        if (c.in == in_rate && c.out == out_rate && c.model == model) { kern = c.kern; ka = c.ka; kb = c.kb; build_table(); return; }
     const double T = 1.0 / in_rate, dt = T / P;
     const bool tda = model == TDA1541A;
     // band limit of the computer's side (its converter): the analog output up to 0.45 x its
@@ -144,10 +147,24 @@ void DacOut::make_kernel(double in_rate, double out_rate) {
     for (float &v : kern) v *= g;
     cache.push_back({ in_rate, out_rate, model, kern, ka, kb });
     if (cache.size() > 6) cache.erase(cache.begin());
+    build_table();
+}
+
+// the kernel by phase: row p holds the kernel at p/P + j input samples (j = 0 .. nt-1), so an
+// output sample is a straight dot product with the newest input samples
+void DacOut::build_table() {
+    nt = ka + kb + 1;
+    tab.assign((size_t)(P + 1) * nt, 0.0f);
+    for (int p = 0; p <= P; p++)
+        for (int j = 0; j < nt; j++) {
+            const size_t k = (size_t)p + (size_t)j * P;
+            if (k + 1 < kern.size()) tab[(size_t)p * nt + j] = kern[k];
+        }
+    w.assign((size_t)nt, 0.0f);
 }
 
 void DacOut::reset() {
-    for (auto &c : hist) std::fill(c, c + HIST, 0.0f);
+    std::fill(&hist[0][0], &hist[0][0] + 2 * HIST * CH, 0.0f);
     n = 0; t_next = 0;
 }
 
@@ -159,7 +176,7 @@ void DacOut::push(const float *x, bool aux, double in_rate, double out_rate, std
         // converter model, the latest value at each output sample
         n++;
         const int slot = (int)(n & (HIST - 1));
-        for (int c = 0; c < CH; c++) hist[c][slot] = x[c];
+        for (int c = 0; c < CH; c++) hist[slot][c] = hist[slot + HIST][c] = x[c];
         const double step = in_rate / out_rate;
         while (t_next <= (double)n) {
             main.push_back(x[0]); main.push_back(x[1]);
@@ -177,23 +194,36 @@ void DacOut::push(const float *x, bool aux, double in_rate, double out_rate, std
         for (int c = 0; c < CH; c++) {
             noise ^= noise << 13; noise ^= noise >> 17; noise ^= noise << 5;
             const float nz = ((noise & 0xffff) / 65535.0f - 0.5f) * 7.8e-6f;     // 110 dB under full scale
-            hist[c][slot] = convert(c, x[c]) + nz;
+            hist[slot][c] = convert(c, x[c]) + nz;
         }
-    } else for (int c = 0; c < CH; c++) hist[c][slot] = x[c];
+    } else for (int c = 0; c < CH; c++) hist[slot][c] = x[c];
+    for (int c = 0; c < CH; c++) hist[slot + HIST][c] = hist[slot][c];    // (twice: reads never wrap)
     // output samples whose kernel has all its input samples
     const double step = in_rate / out_rate;
     const int nch = aux ? CH : 2;
     while (t_next + ka <= (double)n) {
         float y[CH] = {};
-        const long i0 = (long)std::ceil(t_next - kb), i1 = (long)std::floor(t_next + ka);
-        for (long i = std::max(i0, n - HIST + 1); i <= i1; i++) {
-            const double u = t_next - i;                       // input samples after sample i
-            const double kp = (u + ka) * P;
-            const int k = (int)kp;
-            if (k < 0 || k + 1 >= (int)kern.size()) continue;
-            const float f = (float)(kp - k), w = kern[k] + (kern[k + 1] - kern[k]) * f;
-            const int s = (int)(i & (HIST - 1));
-            for (int c = 0; c < nch; c++) y[c] += hist[c][s] * w;
+        const long i1 = (long)std::floor(t_next + ka);
+        const double kpf = (t_next - (double)i1 + ka) * P;      // for input sample i1 - j: kpf + j * P
+        int p = (int)kpf;
+        if (p < 0) p = 0;
+        if (p >= P) p = P - 1;
+        const float f = (float)(kpf - p);
+        const float *r0 = &tab[(size_t)p * nt], *r1 = r0 + nt;
+        for (int j = 0; j < nt; j++) w[j] = r0[j] + (r1[j] - r0[j]) * f;
+        const float *h = hist[(int)(i1 & (HIST - 1)) + HIST];
+        if (aux) {
+            for (int j = 0; j < nt; j++) {             // the channels side by side: vectors a tap
+                const float wj = w[j];
+                const float *hj = h - (size_t)j * CH;
+                for (int c = 0; c < CH; c++) y[c] += hj[c] * wj;
+            }
+        } else {
+            for (int j = 0; j < nt; j++) {
+                const float wj = w[j];
+                const float *hj = h - (size_t)j * CH;
+                y[0] += hj[0] * wj; y[1] += hj[1] * wj;
+            }
         }
         if (model == TDA1541A) {               // C110: the coupling capacitor (1.35 Hz high-pass)
             const float a = (float)(COUPLING_TAU / (COUPLING_TAU + 1.0 / out_rate));

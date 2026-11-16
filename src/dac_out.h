@@ -11,7 +11,8 @@
 //     whole sample period (zero-order hold);
 //   - the analog section of the EPS-16 Plus main board (see dac_out.cpp): the I/V converter,
 //     the 3rd-order low-pass that makes up for the hold's droop and removes the images, the
-//     coupling capacitor. The ASR-10's is taken to be the same (no schematic of it is known).
+//     coupling capacitor. The OEX-6 has the same circuit after each of its three TDA1541As
+//     (OEX-6 schematic); the ASR-10's main board is taken to be the same (no schematic of it).
 // The analog output is then band-limited to the computer's rate and sampled there (polyphase,
 // windowed sinc).
 // IDEAL: a perfect converter (no 16-bit step, no hold, no analog section): only the
@@ -53,7 +54,10 @@ private:
 
     // history of the analog values (input samples)
     static const int HIST = 256;        // power of two, > A + B
-    float hist[CH][HIST] = {};
+    alignas(32) float hist[2 * HIST][CH] = {};   // the channels of a sample side by side; each sample twice (at s and s + HIST)
+    std::vector<float> tab, w;          // the kernel by phase ((P + 1) x nt), weights of one output
+    int nt = 0;
+    void build_table();
     long n = 0;                         // index of the newest input sample
     double t_next = 0;                  // time of the next output sample, in input samples
     uint32_t noise = 22222;
