@@ -37,6 +37,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> scsi_files;
     std::vector<Ev> pkeys;
     bool noscsi = false;
+    std::string flash_file;
     struct AV { double t; int c, v; };
     std::vector<AV> avals;
     for (int i = 1; i < argc; i++) {
@@ -61,6 +62,7 @@ int main(int argc, char **argv) {
             double t; int c, v; sscanf(argv[++i], "%lf:%d:%d", &t, &c, &v); avals.push_back({ t, c, v });
         }
         else if (a == "--no-scsi") noscsi = true;
+        else if (a == "-f" && i + 1 < argc) flash_file = argv[++i];   // FB-2 Flash Bank image (created when missing)
         else if (a == "-h" && i + 1 < argc) { scsi_files.push_back(argv[++i]); }
         else if (a == "-i" && i + 1 < argc) {   // freq:amp  sine wave on the sampling input
             sscanf(argv[++i], "%lf:%lf", &in_freq, &in_amp);
@@ -74,6 +76,7 @@ int main(int argc, char **argv) {
     if (!m.load_rom_dir(romdir)) { fprintf(stderr, "no ROM in %s\n", romdir.c_str()); return 1; }
     if (getenv("EPS_TRACE_IO")) m.trace_io = true;
     m.scsi_fitted = !noscsi;
+    if (!flash_file.empty()) { m.flash.install(true); if (!m.flash.load(flash_file)) m.flash.dirty = true; }
     m.reset();
     if (const char *e = getenv("EPS_RING")) {   // dump the last instructions when PC enters [lo,hi]
         static uint32_t lo, hi; sscanf(e, "%x:%x", &lo, &hi);
@@ -112,7 +115,7 @@ int main(int argc, char **argv) {
     if (const char *e = getenv("EPS_TRACE_N")) {
         static long n = atol(e); static uint32_t lo = 0, hi = 0xffffff;
         if (const char *r = getenv("EPS_TRACE_RANGE")) sscanf(r, "%x:%x", &lo, &hi);
-        m.on_instr = [](uint32_t pc) { if (n > 0 && pc >= lo && pc <= hi) { n--; char b[128]; m68k_disassemble(b, pc, M68K_CPU_TYPE_68000); fprintf(stderr, "%06x %s  D0=%08x A0=%08x A7=%08x\n", pc, b, m68k_get_reg(NULL, M68K_REG_D0), m68k_get_reg(NULL, M68K_REG_A0), m68k_get_reg(NULL, M68K_REG_A7)); } };
+        m.on_instr = [](uint32_t pc) { if (n > 0 && pc >= lo && pc <= hi) { n--; char b[128]; m68k_disassemble(b, pc, M68K_CPU_TYPE_68000); fprintf(stderr, "%06x %s  D0=%08x D2=%08x A0=%08x A7=%08x\n", pc, b, m68k_get_reg(NULL, M68K_REG_D0), m68k_get_reg(NULL, M68K_REG_D2), m68k_get_reg(NULL, M68K_REG_A0), m68k_get_reg(NULL, M68K_REG_A7)); } };
     }
     if (const char *e = getenv("EPS_DISASM")) {
         uint32_t lo, hi; sscanf(e, "%x:%x", &lo, &hi);
@@ -167,6 +170,7 @@ int main(int argc, char **argv) {
     if (const char *f = getenv("EPS_DUMP_WAVE")) { FILE *o = fopen(f, "wb"); fwrite(m.wave.data(), 2, m.wave.size(), o); fclose(o); }
     if (const char *f = getenv("EPS_DUMP_RAM")) { FILE *o = fopen(f, "wb"); fwrite(m.ram.data(), 1, m.ram.size(), o); fclose(o); }
     if (getenv("EPS_SAVE_DISK") && m.fdc.dirty) m.fdc.save();   // write the floppy back
+    if (!flash_file.empty() && m.flash.dirty) m.flash.save(flash_file);
     if (!wav.empty()) wav_write(wav.c_str(), out, 44100);
     return 0;
 }

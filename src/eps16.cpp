@@ -58,13 +58,15 @@ Eps16::Eps16() {
     panel.send = [this](uint8_t b) { if (panel.log) fprintf(stderr, "[PANEL->CPU %.4f] %02x\n", total_cycles / cpu_clock, b); duart.rx_byte(1, b); };
     otis.irq_cb = [this](bool s) { irq_otis = s; update_ipl(); };
     otis.read_sample = [this](int bank, uint32_t addr) -> uint16_t {
-        if (!bank || addr >= wave_words) return 0;
+        if (!bank) return flash.installed() ? flash.sample(addr) : 0;
+        if (addr >= wave_words) return 0;
         return wave[addr];
     };
     otis.read_sample_ctx = this;
     otis.read_sample_fn = [](void *ctx, int bank, uint32_t addr) -> uint16_t {   // (the same, without std::function)
         const Eps16 *m = (const Eps16 *)ctx;
-        if (!bank || addr >= m->wave_words) return 0;
+        if (!bank) return m->flash.installed() ? m->flash.sample(addr) : 0;
+        if (addr >= m->wave_words) return 0;
         return m->wave[addr];
     };
     otis.read_pot = [this]() -> uint16_t {
@@ -129,6 +131,7 @@ void Eps16::reset() {
     esp.set_halt(true);
     panel.reset();
     scsi.reset();
+    flash.reset();
     // the WD33C93 interrupts once its own reset is complete: INTRQ -> /PCL1 sets PCT in
     // DMAC channel 1, which is how the boot ROM detects that the SCSI option is fitted
     if (scsi_fitted) scsi.raise(0x00);
@@ -236,7 +239,8 @@ void Eps16::io_write(uint32_t a, uint32_t v, int sz) {
 }
 
 // CPU $600000-$7FFFFF = OTIS bank 1 (BS = 1), $400000-$5FFFFF = bank 0. The standard
-// 1 MB and the 2X expander live in bank 1; returns an index >= wave_words when absent.
+// 1 MB and the 2X expander live in bank 1 (bank 0 is the FB-2 Flash Bank, see read() and
+// write()); returns an index >= wave_words when absent.
 uint32_t Eps16::wave_index(uint32_t a) const {
     uint32_t w = (a & 0x1fffff) >> 1;
     if (a >= 0x600000) return w < wave_words ? w : 0xffffffff;
@@ -264,6 +268,10 @@ uint32_t Eps16::read(uint32_t a, int sz) {
     }
     if (a >= 0x400000 && a < 0x800000) {
         if (sz == 4) return (read(a, 2) << 16) | read(a + 2, 2);
+        if (a < 0x600000) {
+            if (!flash.installed()) return sz == 2 ? 0xffff : 0xff;
+            return sz == 2 ? flash.read16(a & ~1u) : flash.read8(a);
+        }
         uint32_t w = wave_index(a);
         uint16_t v = w < wave_words ? wave[w] : 0xffff;
         return sz == 2 ? v : (a & 1) ? (v & 0xff) : (v >> 8);
@@ -283,6 +291,12 @@ void Eps16::write(uint32_t a, uint32_t v, int sz) {
     if (a >= 0xc00000 && a < 0xc40000) return;
     if (a >= 0x400000 && a < 0x800000) {
         if (sz == 4) { write(a, v >> 16, 2); write(a + 2, v & 0xffff, 2); return; }
+        if (a < 0x600000) {                    // the flash chips: UCWE = even byte, LCWE = odd byte
+            if (!flash.installed()) return;
+            if (sz == 2) { flash.write8(a & ~1u, (uint8_t)(v >> 8)); flash.write8(a | 1, (uint8_t)v); }
+            else flash.write8(a, (uint8_t)v);
+            return;
+        }
         uint32_t w = wave_index(a);
         if (w >= wave_words) return;
         if (sz == 2) wave[w] = v;
