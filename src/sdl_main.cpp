@@ -542,6 +542,12 @@ int main(int argc, char **argv) {
         return default_scsi_dir();
     };
     if (scsi_from_cfg) { std::string d = scsi_dir_of(cfg); if (!d.empty()) printf("%s", m.scsi.attach_dir(d).c_str()); }
+    // FB-2 Flash Bank: its contents live in fb2.bin next to eps16.cfg (a missing file = an erased board)
+    const std::string flash_path = (std::filesystem::u8path(cfg.path).parent_path() / "fb2.bin").u8string();
+    m.flash.load(flash_path);
+    m.flash.install(cfg.flash_bank);
+    uint32_t flash_seen = 0, flash_t = 0;           // the file is written once the flash has stopped changing
+    std::vector<uint8_t> flash_out;
 
     // ---------------------------------------------------------------- MIDI
     MidiPorts midi;
@@ -825,7 +831,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> midi_ins, midi_outs;
     NativeMenu nmenu;
     std::string opt_msg, scsi_note;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DAC, O_N };
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DAC, O_FLASH, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -959,11 +965,14 @@ int main(int argc, char **argv) {
         int id = new_drive_id();
         r[O_NEWMAKE].items.push_back(id < 0 ? "No free SCSI ID in the folder" : "Create HD" + std::to_string(id) + ".img (formatted)");
         r[O_BOOT].label = "Boot from";
-        r[O_BOOT].items = { "Floppy: the OS disk image", "SCSI drive (no floppy at start)" };
+        r[O_BOOT].items = { "Floppy: the OS disk image", "No floppy: SCSI drive or Flash Bank" };
         r[O_BOOT].sel = edit.boot_scsi ? 1 : 0;
         r[O_DAC].label = "D/A converters";
         r[O_DAC].items = { "TDA1541A (as the EPS-16 Plus)", "Ideal (perfect converter)" };
         r[O_DAC].sel = edit.dac_tda ? 0 : 1;
+        r[O_FLASH].label = "FB-2 Flash Bank";
+        r[O_FLASH].items = { "not installed", "installed (1 MB: OS and instruments)" };
+        r[O_FLASH].sel = edit.flash_bank ? 1 : 0;
     };
     // a row changed: write it back into `edit` and rebuild the dependent rows
     auto row_changed = [&](int row) {
@@ -997,6 +1006,7 @@ int main(int argc, char **argv) {
         case O_KBCH: edit.kbd_channel = x.sel + 1; break;
         case O_BOOT: edit.boot_scsi = x.sel == 1; break;
         case O_DAC: edit.dac_tda = x.sel == 0; break;
+        case O_FLASH: edit.flash_bank = x.sel == 1; break;
         }
         build_rows();
     };
@@ -1014,6 +1024,7 @@ int main(int argc, char **argv) {
     auto apply_options = [&]() {           // call with mmx NOT held
         bool scsi_changed = edit.scsi_dir != cfg.scsi_dir;
         bool boot_changed = edit.boot_scsi != cfg.boot_scsi;
+        bool flash_changed = edit.flash_bank != cfg.flash_bank;
         cfg = edit;
         cfg.midi_in_set = true;
         {
@@ -1030,9 +1041,16 @@ int main(int argc, char **argv) {
                 if (cfg.boot_scsi) { if (m.fdc.has_disk()) m.eject_disk(); }
                 else if (!m.fdc.has_disk() && !os_disk.empty()) m.insert_disk(os_disk);
                 m.reset();
-                scsi_note = cfg.boot_scsi ? "Restarted: booting from the SCSI drive (no floppy in the drive)"
+                scsi_note = cfg.boot_scsi ? (cfg.flash_bank ? "Restarted: no floppy in the drive, booting from the Flash Bank or a SCSI drive" : "Restarted: booting from the SCSI drive (no floppy in the drive)")
                                           : (os_disk.empty() ? "Restarted: no OS disk image found in the roms folder"
                                                              : "Restarted: booting from the OS disk image");
+            }
+            if (flash_changed) {          // fitting or removing a board: the EPS is switched off and on again
+                if (m.flash.dirty) m.flash.save(flash_path);
+                m.flash.install(cfg.flash_bank);
+                if (!boot_changed) { if (m.fdc.has_disk() && m.fdc.dirty && !readonly) m.fdc.save(); m.reset(); }
+                scsi_note = cfg.flash_bank ? "Restarted with the FB-2 Flash Bank (contents: " + flash_path + ")"
+                                           : "Restarted without the FB-2 Flash Bank (its contents are kept)";
             }
         }
         midi.apply(cfg.midi_in, cfg.midi_out);
@@ -1050,7 +1068,7 @@ int main(int argc, char **argv) {
         { "SAMPLER INPUT", 1, Y0, O_IN, O_INL },
         { "MIDI", 1, Y0 + ROW_H * 3 + 6, O_MIDIIN, O_MIDIMAP },
         { "SCSI DRIVES", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_BOOT },
-        { "SOUND", 0, Y0 + ROW_H * 9 + 6, O_DAC, O_DAC } };
+        { "HARDWARE", 0, Y0 + ROW_H * 9 + 6, O_DAC, O_FLASH } };
     auto field_rect = [&](int row) -> SDL_Rect {
         for (const Sect &sc : sects)
             if (row >= sc.first && row <= sc.last)
@@ -1081,7 +1099,7 @@ int main(int argc, char **argv) {
     };
     // keyboard order of the fields
     const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3,
-                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DAC };
+                             O_IN, O_INL, O_MIDIIN, O_MIDIOUT, O_KBCH, O_MIDIMAP, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DAC, O_FLASH };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;
     // window layout: keyboard strip shown or hidden (it is always there while the options are
@@ -1124,7 +1142,7 @@ int main(int argc, char **argv) {
     bool arrows_both = false;                       // right click on Up/Down: both arrows held
     bool kb_down[KEYS] = {};
     int velocity = 100;
-    std::string status = disk.empty() ? (boot_scsi ? "Booting from SCSI: no floppy in the drive (drop a disk image on the window to insert one)"
+    std::string status = disk.empty() ? (boot_scsi ? (cfg.flash_bank ? "No floppy in the drive: booting from the Flash Bank or SCSI (drop a disk image on the window to insert one)" : "Booting from SCSI: no floppy in the drive (drop a disk image on the window to insert one)")
                                                    : "No OS disk found in the roms folder: drop a disk image (.img, .ede, .eda) or an instrument (.efe) on the window")
                                       : "Disk: " + disk;
     uint32_t status_t = SDL_GetTicks();
@@ -1453,11 +1471,19 @@ int main(int argc, char **argv) {
             scsi_wr = m.scsi.writes.load(std::memory_order_relaxed);
             m.in_peak = 0;
             scsi_sum = scsi_fitted ? m.scsi.summary() : std::string("off");
+            if (m.flash.dirty) {
+                if (m.flash.changes != flash_seen) { flash_seen = m.flash.changes; flash_t = SDL_GetTicks(); }
+                else if (SDL_GetTicks() - flash_t > 1500) { flash_out = m.flash.mem; m.flash.dirty = false; }
+            }
             // WAV recording: what happened, or what it is doing, stays in the status line
             if (!rec.event.empty()) { status = rec.event; rec.event.clear(); status_t = SDL_GetTicks(); }
             else if (rec.active()) { status = rec.status(); status_t = SDL_GetTicks(); }
             if (shot_at >= 0 && emu_t >= shot_at) shot_at = -2;      // take it after drawing
             if (open_opts_at_start) { open_opts_at_start = false; open_options(); apply_layout(); }
+        }
+        if (!flash_out.empty()) {              // (the copy is written with the machine unlocked)
+            if (!FlashBank::write_file(flash_path, flash_out)) { status = "Cannot write " + flash_path; status_t = SDL_GetTicks(); }
+            flash_out.clear();
         }
         if (want_options) open_options();      // enumerates devices: done with the machine unlocked
         if (want_open) {                       // the file dialog runs with the machine unlocked
@@ -1675,6 +1701,7 @@ int main(int argc, char **argv) {
     {
         std::lock_guard<std::mutex> g(mmx);
         save_disk();
+        if (m.flash.dirty) m.flash.save(flash_path);
     }
     if (dbg_wav) if (FILE *f = fopen(dbg_wav, "wb")) {
         uint32_t n = (uint32_t)dbg_out.size(), sr = (uint32_t)cur_rate, br = sr * 4, ds = n * 2, rs = 36 + ds;

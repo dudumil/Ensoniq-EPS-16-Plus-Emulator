@@ -84,7 +84,7 @@ set(EMU ${CMAKE_CURRENT_SOURCE_DIR}/..)
 add_library(eps16core_pic STATIC
   ${EMU}/musashi/m68kcpu.c ${EMU}/musashi/m68kops.c ${EMU}/musashi/m68kdasm.c ${EMU}/musashi/softfloat/softfloat.c
   ${EMU}/src/eps16.cpp ${EMU}/src/dac_out.cpp ${EMU}/src/duart.cpp ${EMU}/src/wd1772.cpp ${EMU}/src/hd63450.cpp
-  ${EMU}/src/es5505.cpp ${EMU}/src/es5510.cpp ${EMU}/src/panel.cpp ${EMU}/src/scsi.cpp ${EMU}/src/efe_disk.cpp ${EMU}/src/settings.cpp)
+  ${EMU}/src/es5505.cpp ${EMU}/src/es5510.cpp ${EMU}/src/panel.cpp ${EMU}/src/scsi.cpp ${EMU}/src/efe_disk.cpp ${EMU}/src/flash_bank.cpp ${EMU}/src/settings.cpp)
 target_include_directories(eps16core_pic PUBLIC ${EMU}/src ${EMU}/musashi ${EMU}/musashi/softfloat)
 set_target_properties(eps16core_pic PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

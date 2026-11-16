@@ -9,7 +9,8 @@
 //   280000-28001F  MC68681 DUART (odd bytes): A = MIDI, B = front panel
 //   2C0000-2C0007  WD1772 FDC (odd bytes)
 //   300000-300003  WD33C93 SCSI (optional), 340000 its DMA data port
-//   600000-7FFFFF  sound memory (1M x 16 max, OTIS bank BS=1), 400000-5FFFFF bank 0 (not fitted)
+//   600000-7FFFFF  sound memory (1M x 16 max, OTIS bank BS=1)
+//   400000-5FFFFF  OTIS bank 0: the FB-2 Flash Bank (1 MB, mirrored at 500000) when installed
 //   C00000-C1FFFF  boot ROM (2 x 27C512)
 // DUART outputs (pins = inverted OPR): OP0 /DSEL, OP1 SSEL, OP2 SAMPEN, OP3 ESP HALT,
 //   OP4 AN1, OP5 AN2, OP6 AN0, OP7 LINE/MIC.  Inputs: IP0 DSTAT, IP1 /DSKCHG, IP2 E (1.25 MHz).
@@ -29,6 +30,7 @@
 #include "dac_out.h"
 #include "panel.h"
 #include "scsi.h"
+#include "flash_bank.h"
 
 class Eps16 {
 public:
@@ -71,6 +73,7 @@ public:
     Panel   panel;
     Wd33c93 scsi;
     bool scsi_fitted = true;
+    FlashBank flash;                       // FB-2 Flash Bank (OTIS bank 0), when installed
 
     std::vector<uint8_t> rom;
     std::vector<uint8_t> ram;              // OS RAM

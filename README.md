@@ -18,6 +18,8 @@ for both.
   level meter.
 - Sequencer with correct tempo, MIDI In/Out.
 - SCSI option (ZuluSCSI-style images): detection at boot, CHANGE STORAGE DEVICE, FORMAT SCSI DRIVE.
+- **FB-2 Flash Bank** (1 MB of flash for the OS and instruments): format, save, instant loads, boot
+  from the flash.
 - Import of **Ensoniq Mirage** sounds from Mirage disk images (440 KB `.img`): Command › System/MIDI ›
   LOAD MIRAGE-DSK SOUND.
 - OEX-6 Output Expander outputs (AUX 1, BUS 2, BUS 3) on separate outputs of your audio interface.
@@ -121,6 +123,28 @@ choose another one in Options › SCSI drives.
 **New formatted drives:** in Options › SCSI drives pick a size (50 MB to 2 GB) and click
 **Create HDn.img**. The image is created on the first free SCSI ID, already formatted as the EPS's
 FORMAT SCSI DRIVE does it, so it is ready to use. Reset the EPS so that the OS sees new drives.
+
+## FB-2 Flash Bank
+
+The FB-2 was Ensoniq's flash memory board for the EPS-16 Plus: four Intel 28F020 chips (1 MB) on the
+sound memory expansion connector. Turn it on in Options › Hardware › *FB-2 Flash Bank*; the EPS
+restarts with the board fitted. Its contents are kept in `fb2.bin`, in the same folder as `eps16.cfg`
+(the VST3 plug-in uses the same file).
+
+It works as on the real unit, because the OS (boot ROM) itself drives the flash chips:
+
+- **Format:** Command › System/MIDI › FORMAT FLASH BANK. A new board must be formatted first. This
+  is the only way to free space: files on the flash cannot be deleted one by one, the whole flash is
+  erased (it takes about 45 seconds, as the chips are erased and checked byte by byte).
+- **Choose the flash:** hold **Load** and press **Instrument** to switch between the Flash Bank and the
+  last storage device (floppy / SCSI). The display then lists the flash's files.
+- **Save:** with the flash chosen, SAVE INSTRUMENT stores the instrument there and COPY OS TO DISK
+  writes the OS to an empty (just formatted) flash. Only the OS and instruments go on the flash: a
+  bank or a sequence gets DISK TYPE ERROR, as on the real board.
+- **Load:** instant. The instruments are played straight from the flash, nothing is copied into the
+  sound memory (they cannot be edited: CANT EDIT FLASH SOUND).
+- **Boot:** with the OS in the flash and no floppy in the drive (Options › SCSI drives › *Boot from* ›
+  "No floppy"), the EPS starts from the flash in about a second after the floppy check.
 
 ## VST3 plug-in
 

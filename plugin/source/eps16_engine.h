@@ -66,7 +66,8 @@ public:
 
     EngineSnapshot snapshot();
     double emulated_seconds();                     // CPU time of the machine (diagnostics)
-    void save_floppy();                            // write back a modified floppy image
+    void save_floppy();                            // write back a modified floppy image (and the flash)
+    void flash_tick();                             // UI thread, every few seconds: save the Flash Bank when idle
 
 private:
     void activate();                               // global lock must be held
@@ -93,6 +94,8 @@ private:
     std::string os_disk;                           // the OS disk image found at start (even when booting from SCSI)
     std::string scsi_folder;                       // chosen folder, "" = default
     std::string app_dir;                           // the stand-alone program's folder (from the .cfg)
+    uint32_t flash_seen = 0;                       // Flash Bank changes at the last flash_tick()
+    std::string flash_file() const;
     bool patch_held[2] = {};
     std::filesystem::file_time_type cfg_stamp{};
 };
