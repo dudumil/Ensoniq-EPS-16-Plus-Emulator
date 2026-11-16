@@ -85,7 +85,7 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
   (open that page once so that the name is known; otherwise the file gets a generic name).
   Ctrl+W again cancels or stops.
 - **Power:** hold the Power button for about 1 s to restart the machine (or File › Reset).
-- **Boot from SCSI:** Options › SCSI drives › *Boot from* › "SCSI drive (no floppy at start)" starts the
+- **Boot from SCSI:** Options › SCSI drives › *Boot from* › "No floppy: SCSI drive or Flash Bank" starts the
   machine with an empty floppy drive, booting from a SCSI drive that has the OS on it (command line:
   `--boot scsi` / `--boot floppy`, this run only). The OS disk image is only ever taken from the `roms`
   folder next to the program: nothing is fetched from `%APPDATA%`, so deleting it there removes it.

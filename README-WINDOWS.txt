@@ -91,7 +91,7 @@ SCSI
    formatted with FORMAT SCSI DRIVE. Saves go straight to the image.
 
 BOOTING FROM A SCSI DRIVE
-   View > Options > SCSI DRIVES > Boot from: "SCSI drive (no floppy at start)".
+   View > Options > SCSI DRIVES > Boot from: "No floppy: SCSI drive or Flash Bank".
    The EPS-16 Plus then starts with an empty floppy drive and boots from a
    SCSI drive that has an OS on it (e.g. HD0.img in the "scsi" folder); with the
    stock ROM and no such drive the display shows PLEASE INSERT DISK. APPLY restarts
@@ -100,6 +100,19 @@ BOOTING FROM A SCSI DRIVE
    The OS disk image (os130.img) is looked for ONLY in the "roms" folder next to
    the program: a copy left in %APPDATA%\Ensoniq\EPS16emu is not used, so
    deleting os130.img from roms really removes it.
+
+FB-2 FLASH BANK
+   Ensoniq's 1 MB flash board for the OS and instruments. View > Options >
+   HARDWARE > FB-2 Flash Bank: installed (APPLY restarts the EPS with it). Its
+   contents are kept in %APPDATA%\Ensoniq\EPS16emu\fb2.bin (the VST3 uses the
+   same file).
+   - Format first: Command > System-MIDI > FORMAT FLASH BANK (about 45 s). This
+     is the only way to free space: files cannot be deleted one by one.
+   - Hold LOAD and press INST to switch between the flash and the floppy/SCSI.
+   - SAVE INSTRUMENT saves there; COPY OS TO DISK puts the OS on an empty flash.
+     Only the OS and instruments: banks and sequences give DISK TYPE ERROR.
+   - Loads are instant: the instruments play straight from the flash.
+   - With the OS on the flash and Boot from "No floppy", the EPS boots from it.
 
 MIRAGE DISKS
    Ensoniq Mirage disk images (440 KB .img) can be dropped on the window like
