@@ -46,8 +46,14 @@ void ES5505::generate_voice(Voice &v, int32_t *dest) {
     const bool stopped = (v.control & CR_STOPMASK) != 0;
     int bank = (v.control & CR_BS) ? 1 : 0;
     uint32_t a = acc >> FRAC;
-    int32_t s1 = (int16_t)read_sample(bank, a & 0xfffff);
-    int32_t s2 = (int16_t)read_sample(bank, (a + 1) & 0xfffff);
+    int32_t s1, s2;
+    if (read_sample_fn) {
+        s1 = (int16_t)read_sample_fn(read_sample_ctx, bank, a & 0xfffff);
+        s2 = (int16_t)read_sample_fn(read_sample_ctx, bank, (a + 1) & 0xfffff);
+    } else {
+        s1 = (int16_t)read_sample(bank, a & 0xfffff);
+        s2 = (int16_t)read_sample(bank, (a + 1) & 0xfffff);
+    }
     int32_t frac = acc & ((1 << FRAC) - 1);
     int32_t s = s1 + (((s2 - s1) * frac) >> FRAC);
 

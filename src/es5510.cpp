@@ -7,6 +7,12 @@
 #include <vector>
 #include <algorithm>
 
+#if defined(__GNUC__) || defined(__clang__)
+#define ESP_INLINE __attribute__((always_inline)) inline
+#else
+#define ESP_INLINE inline
+#endif
+
 namespace {
 constexpr uint8_t FLAG_N = 1 << 7, FLAG_C = 1 << 6, FLAG_V = 1 << 5, FLAG_LT = 1 << 4, FLAG_Z = 1 << 3, FLAG_NOT = 1 << 2;
 constexpr uint8_t FLAG_MASK = FLAG_N | FLAG_C | FLAG_V | FLAG_LT | FLAG_Z;
@@ -16,19 +22,12 @@ inline int32_t sext24(int32_t v) { return (int32_t)((uint32_t)v << 8) >> 8; }
 inline int64_t sext48(int64_t v) { return (int64_t)((uint64_t)v << 16) >> 16; }
 
 inline int32_t add(int32_t a, int32_t b, uint8_t &flags) {
-    int32_t aSign = a & 0x00800000, bSign = b & 0x00800000;
-    int32_t result = a + b;
-    int32_t rSign = result & 0x00800000;
-    bool overflow = (aSign == bSign) && (aSign != rSign);
-    bool carry = result & 0x01000000;
-    bool negative = rSign != 0;
-    bool lessThan = (overflow && !negative) || (!overflow && negative);
-    flags = setFlagTo(flags, FLAG_C, carry);
-    flags = setFlagTo(flags, FLAG_N, negative);
-    flags = setFlagTo(flags, FLAG_Z, (result & 0x00ffffff) == 0);
-    flags = setFlagTo(flags, FLAG_V, overflow);
-    flags = setFlagTo(flags, FLAG_LT, lessThan);
-    return result & 0x00ffffff;
+    // (branch-free) C = carry out of bit 23, N = sign, Z = zero, V = signed overflow, LT = N xor V
+    const uint32_t r = (uint32_t)a + (uint32_t)b;
+    const uint32_t c = (r >> 24) & 1, n = (r >> 23) & 1, z = (r & 0x00ffffff) == 0;
+    const uint32_t v = ((~((uint32_t)a ^ (uint32_t)b) & ((uint32_t)a ^ r)) >> 23) & 1;
+    flags = (uint8_t)((flags & ~(FLAG_C | FLAG_N | FLAG_Z | FLAG_V | FLAG_LT)) | (c << 6) | (n << 7) | (z << 3) | (v << 5) | ((n ^ v) << 4));
+    return (int32_t)(r & 0x00ffffff);
 }
 inline int16_t round_24_to_16(int32_t v) { return (int16_t)(v >> 8); }
 inline int32_t saturate(int32_t value, uint8_t &flags, bool negative) {
@@ -73,6 +72,7 @@ void ES5510::reset() {
     pc = 0;
     memset(gpr, 0, sizeof(gpr));
     memset(instr, 0, sizeof(instr));
+    for (int i = 0; i < 160; i++) decode(i);
     memset(ser, 0, sizeof(ser));
     std::fill(dram.begin(), dram.end(), 0);
     state = RUNNING;
@@ -84,6 +84,12 @@ void ES5510::reset() {
     machl = 0; mac_overflow = false; dil = 0;
     memsiz = 0xffffff; memmask = 0; memincrement = 0x1000000; memshift = 24;
     dlength = abase = bbase = dbase = 0; ccr = cmr = 0; dol[0] = dol[1] = 0; dol_count = 0;
+    sync_spr();
+}
+
+void ES5510::sync_spr() {
+    for (int r = 234; r < 256; r++) gpr[r] = read_reg((uint8_t)r);
+    gpr[DIL_SRC] = (int32_t)((uint32_t)(uint16_t)dil << 8);
 }
 
 uint8_t ES5510::host_r(int offset) {
@@ -173,11 +179,11 @@ void ES5510::host_w(int offset, uint8_t data) {
         write_reg(data, gpr_latch); break;
     case 0xc0:
         if (hostlog) fprintf(stderr, "ESPHOST instr %02x <- %012llx\n", data, (unsigned long long)instr_latch);
-        if (data < 0xa0) instr[data] = instr_latch & 0xffffffffffffULL;
+        if (data < 0xa0) { instr[data] = instr_latch & 0xffffffffffffULL; decode(data); }
         break;
     case 0xe0:
         if (hostlog) fprintf(stderr, "ESPHOST both %02x <- %012llx / %06x\n", data, (unsigned long long)instr_latch, gpr_latch & 0xffffff);
-        if (data < 0xa0) instr[data] = instr_latch;
+        if (data < 0xa0) { instr[data] = instr_latch; decode(data); }
         write_reg(data, gpr_latch);
         break;
     }
@@ -250,9 +256,13 @@ void ES5510::write_reg(uint8_t reg, int32_t value) {
     case 250: ccr = (value >> 16) & FLAG_MASK; break;
     case 251: cmr = (value >> 16) & (FLAG_MASK | FLAG_NOT); break;
     }
+    // the copies in gpr[] of what changed
+    if (reg >= 234 && reg <= 241) gpr[reg] = read_reg(reg);
+    else if (reg == 242 || reg == 243) { gpr[242] = read_reg(242); gpr[243] = read_reg(243); }
+    else if (reg >= 244 && reg <= 251) { gpr[248] = dbase; gpr[reg] = read_reg(reg); }
 }
 
-void ES5510::write_to_dol(int32_t value) {
+ESP_INLINE void ES5510::write_to_dol(int32_t value) {
     int16_t d = round_24_to_16(value);
     if (dol_count >= 2) { dol[0] = dol[1]; dol[1] = d; }
     else dol[dol_count++] = d;
@@ -262,9 +272,10 @@ void ES5510::alu_operation_end() {
     if (halt_asserted) { state = HALTED; host_control &= ~0x04; }
     dbase -= memincrement;
     if (dbase < 0) dbase = dlength;
+    gpr[248] = dbase;
 }
 
-int32_t ES5510::alu_operation(uint8_t op, int32_t a, int32_t b, uint8_t &flags) {
+ESP_INLINE int32_t ES5510::alu_operation(uint8_t op, int32_t a, int32_t b, uint8_t &flags) {
     int32_t tmp;
     switch (op) {
     case 0x0: tmp = add(a, b, flags); return saturate(tmp, flags, (a & 0x00800000) != 0);
@@ -291,7 +302,7 @@ int32_t ES5510::alu_operation(uint8_t op, int32_t a, int32_t b, uint8_t &flags) 
     return 0;
 }
 
-void ES5510::mul_writeback() {
+ESP_INLINE void ES5510::mul_writeback() {
     if (!mulacc.write_result) return;
     mulacc.write_result = false;
     mulacc.product = ((int64_t)sext24(mulacc.cValue) * (int64_t)sext24(mulacc.dValue)) << mulshift;
@@ -300,11 +311,11 @@ void ES5510::mul_writeback() {
     machl = mulacc.result;
     int32_t tmp = mac_overflow ? (machl < 0 ? 0x00800000 : 0x007fffff) : (int32_t)((mulacc.result & 0x0000ffffff000000ULL) >> 24);
     if (itrace) fprintf(stderr, "  pc%02x MUL c=%06x d=%06x acc=%d -> %06x machl=%012llx\n", pc, mulacc.cValue & 0xffffff, mulacc.dValue & 0xffffff, mulacc.accumulate, tmp & 0xffffff, (unsigned long long)(machl & 0xffffffffffffULL));
-    if (mulacc.dst & REG) write_reg(mulacc.cReg, tmp);
+    if (mulacc.dst & REG) wr(mulacc.cReg, tmp);
     if (mulacc.dst & DELAY) write_to_dol(tmp);
 }
 
-void ES5510::alu_writeback() {
+ESP_INLINE void ES5510::alu_writeback() {
     if (!alu.write_result) return;
     alu.write_result = false;
     if (alu.op == 0xf) return;      // END: no ALU result
@@ -313,15 +324,15 @@ void ES5510::alu_writeback() {
     if (itrace) fprintf(stderr, "  pc%02x ALU op=%x a=%06x b=%06x -> %06x ccr=%02x dil=%04x\n", pc, alu.op, alu.aValue & 0xffffff, alu.bValue & 0xffffff, alu.result & 0xffffff, flags, dil & 0xffff);
     bool wrote_ccr = false;
     if (alu.op != 4) {
-        if (alu.dst & REG) { write_reg(alu.aReg, alu.result); wrote_ccr = alu.aReg == 0xfa; }
+        if (alu.dst & REG) { wr(alu.aReg, alu.result); wrote_ccr = alu.aReg == 0xfa; }
         if (alu.dst & DELAY) write_to_dol(alu.result);
     }
     // a MOV into CCR sets the flags explicitly (the EPS-16 Plus sampling program alternates
     // them this way): the result flags must not overwrite the value just written
-    if (alu.update_ccr && !wrote_ccr) ccr = flags;
+    if (alu.update_ccr && !(wrote_ccr && ccr_write_wins)) ccr = flags;
 }
 
-void ES5510::ram_write_cycle(const Ram &r) {
+ESP_INLINE void ES5510::ram_write_cycle(const Ram &r) {
     if (r.cycle != READ) {
         if (r.cycle == WRITE && !r.io) dram_w(r.address, dol[0]);
         dol[0] = dol[1];
@@ -337,95 +348,29 @@ void ES5510::drain_pipeline() {
     ram_write_cycle(ram);
     ram = ram_p = ram_pp = Ram{};
     dol_count = 0;
+    sync_spr();
 }
 
-void ES5510::step() {
-    ram_pp = ram_p;
-    ram_p = ram;
-    uint64_t in = instr[pc];
-
-    if (ram_pp.cycle != WRITE) {
-        if (ram_pp.io) dil = 0;
-        else dil = dram_r(ram_pp.address);
-    }
-    const RamCtl &rc = RAMCTL[(in >> 3) & 7];
-    ram.cycle = rc.cycle;
-    ram.io = rc.access == A_IO;
-    int32_t offset = gpr[pc];
-    switch (rc.access) {
-    // Addresses are formed in whole memory words. The bits of the base registers below the
-    // memory-size shift are not added in (the OS leaves junk there: ABASE = $xxxx0F, and DBASE
-    // reloads from DLENGTH = $FFFFFF), and the fractional part of an interpolated offset never
-    // carries into the word address. Adding them made the address jump a word whenever the
-    // offset's fraction was near 1 (pitch shifters crackled); and taking the delay-line modulo
-    // on the raw 24-bit values made reads that wrap past the end of the delay memory land one
-    // word off once per pass through it (a noise burst every 65536 samples, ~1.5 s).
-    case A_DELAY: {
-        uint32_t len = ((uint32_t)dlength >> memshift) + 1;
-        uint32_t w = ((uint32_t)dbase >> memshift) + ((uint32_t)(offset & 0x00ffffff) >> memshift);
-        ram.address = (int32_t)(w % len) & (memmask >> memshift);
-        break;
-    }
-    case A_TABLE_A: ram.address = (((abase & memmask) + offset) & memmask) >> memshift; break;
-    case A_TABLE_B: ram.address = (((bbase & memmask) + offset) & memmask) >> memshift; break;
-    case A_IO: ram.address = offset & 0x00fffff0; break;
-    }
-
+void ES5510::decode(int i) {
+    const uint64_t in = instr[i];
+    Dec &d = dec[i];
     const OpSel &os = OPSEL[(in >> 8) & 0x0f];
-    bool skippable = (in & 0x80) != 0;
-
-    mul_writeback();
-
-    mulacc.cReg = (in >> 32) & 0xff;
-    mulacc.dReg = (in >> 40) & 0xff;
-    mulacc.src = os.mac_src;
-    mulacc.dst = os.mac_dst;
-    mulacc.accumulate = ((in >> 6) & 1) != 0;
-    if (mulacc.src == REG) mulacc.cValue = read_reg(mulacc.cReg);
-    else mulacc.cValue = (uint32_t)(uint16_t)dil << 8;
-    mulacc.dValue = read_reg(mulacc.dReg);
-
-    alu_writeback();
-
-    // Skip test for this step: the CCR written by the previous instruction is already valid
-    // (datasheet 3.3.3: "CCR bits will be active for the conditional execution of both the ALU
-    // and Multiplier phases of the subsequent microinstruction cycle").
-    bool skip = false;
-    if (skippable) {
-        bool cond = (ccr & cmr & FLAG_MASK) != 0;
-        if (isFlagSet(cmr, FLAG_NOT)) cond = !cond;
-        skip = cond;
-    }
-    mulacc.write_result = !skip;
-
-    alu.aReg = (in >> 16) & 0xff;
-    alu.bReg = (in >> 24) & 0xff;
-    alu.op = (in >> 12) & 0x0f;
-    alu.src = os.alu_src;
-    alu.dst = os.alu_dst;
-    alu.write_result = !skip || (alu.op == 4);
-    alu.update_ccr = !skippable || (alu.op == 4);
-
-    bool ended = false;
-    if (alu.op == 0xf) {
-        alu_operation_end();
-        ended = true;
-    } else {
-        if (ALU_OPERANDS[alu.op] == 1) {
-            if (alu.src == REG) alu.bValue = read_reg(alu.bReg);
-            else alu.bValue = (uint32_t)(uint16_t)dil << 8;
-        } else {
-            if (alu.src == REG) alu.aValue = read_reg(alu.aReg);
-            else alu.aValue = (uint32_t)(uint16_t)dil << 8;
-            alu.bValue = read_reg(alu.bReg);
-        }
-    }
-
-    ram_write_cycle(ram_p);
-    if (ended) {
-        pc = 0;                         // END: execution restarts at location 0 (datasheet 5.2.1)
-        if (state == HALTED) drain_pipeline();
-    } else if (++pc >= 160) pc = 0;
+    const RamCtl &rc = RAMCTL[(in >> 3) & 7];
+    d.aReg = (in >> 16) & 0xff; d.bReg = (in >> 24) & 0xff; d.cReg = (in >> 32) & 0xff; d.dReg = (in >> 40) & 0xff;
+    d.op = (in >> 12) & 0x0f;
+    d.alu_src = os.alu_src; d.alu_dst = os.alu_dst; d.mac_src = os.mac_src; d.mac_dst = os.mac_dst;
+    d.ram_cycle = (uint8_t)rc.cycle; d.ram_access = (uint8_t)rc.access;
+    d.acc = ((in >> 6) & 1) != 0;
+    d.skippable = (in & 0x80) != 0;
+    d.one_operand = ALU_OPERANDS[d.op] == 1;
+    d.c_src = d.mac_src == REG ? d.cReg : DIL_SRC;
+    d.a_src = d.alu_src == REG ? d.aReg : DIL_SRC;
+    d.b1_src = d.alu_src == REG ? d.bReg : DIL_SRC;
+    // where the results go: a register, or nowhere (also for the registers that ignore writes:
+    // the unused ones and the constants ZERO, MAX, MIN, M1)
+    auto target = [](uint8_t r) -> uint16_t { return (r < 0xc0 || (r >= 234 && r <= 251)) ? r : TRASH; };
+    d.mac_w = (d.mac_dst & REG) ? target(d.cReg) : TRASH;
+    d.alu_w = ((d.alu_dst & REG) && d.op != 4) ? target(d.aReg) : TRASH;     // (CMP writes no result)
 }
 
 void ES5510::run_frame() {
@@ -448,13 +393,117 @@ void ES5510::run_frame() {
         if (halt_asserted) { host_control &= ~0x04; return; }
         state = RUNNING; host_control |= 0x04; pc = 0;
     }
-    // execute until END (bounded to the 160-instruction program store)
+    // Execute until END (bounded to the 160-instruction program store). One instruction cycle:
+    // the RAM read issued two cycles ago lands in DIL; the previous instruction's multiplier
+    // result is written; this instruction's multiplier operands are read; the previous
+    // instruction's ALU result is written (and its flags); the skip test; this instruction's
+    // ALU operands are read; the RAM cycle issued last cycle is done. The pipeline (pending
+    // results, RAM cycles) is kept in local variables for the whole frame, and every register
+    // read is one load from gpr[] (the special registers are kept there as copies).
+    Ram r0 = ram, r1 = ram_p, r2 = ram_pp;
+    bool mw = mulacc.write_result, macc = mulacc.accumulate;
+    int32_t mc = mulacc.cValue, md = mulacc.dValue;
+    uint8_t mdst = mulacc.dst, mcreg = mulacc.cReg;
+    bool aw = alu.write_result, aupd = alu.update_ccr;
+    uint8_t aop = alu.op, adst = alu.dst, areg = alu.aReg;
+    int32_t aa = alu.aValue, ab = alu.bValue;
+    auto target = [](uint8_t r) -> uint16_t { return (r < 0xc0 || (r >= 234 && r <= 251)) ? r : TRASH; };
+    uint16_t mwr = (mdst & REG) ? target(mcreg) : TRASH, awr = ((adst & REG) && aop != 4) ? target(areg) : TRASH;
+    auto store = [&]() {
+        ram = r0; ram_p = r1; ram_pp = r2;
+        mulacc.write_result = mw; mulacc.accumulate = macc; mulacc.cValue = mc; mulacc.dValue = md; mulacc.dst = mdst; mulacc.cReg = mcreg;
+        alu.write_result = aw; alu.update_ccr = aupd; alu.op = aop; alu.dst = adst; alu.aReg = areg; alu.aValue = aa; alu.bValue = ab;
+    };
+    auto load = [&]() {
+        r0 = ram; r1 = ram_p; r2 = ram_pp;
+        mw = mulacc.write_result; macc = mulacc.accumulate; mc = mulacc.cValue; md = mulacc.dValue; mdst = mulacc.dst; mcreg = mulacc.cReg;
+        aw = alu.write_result; aupd = alu.update_ccr; aop = alu.op; adst = alu.dst; areg = alu.aReg; aa = alu.aValue; ab = alu.bValue;
+        mwr = (mdst & REG) ? target(mcreg) : TRASH; awr = ((adst & REG) && aop != 4) ? target(areg) : TRASH;
+    };
     for (int i = 0; i < 160 + 2; i++) {
-        bool at_end = ((instr[pc] >> 12) & 0x0f) == 0x0f;
-        step();
-        if (at_end) break;
-        if (state == HALTED) break;
+        const Dec &d = dec[pc];
+        const bool at_end = d.op == 0x0f;
+        // the RAM pipeline: the read issued two cycles ago arrives in DIL
+        r2 = r1; r1 = r0;
+        if (r2.cycle != WRITE) {
+            dil = r2.io ? 0 : dram_r(r2.address);
+            gpr[244] = (int32_t)((uint32_t)(int32_t)dil << 8);
+            gpr[DIL_SRC] = (int32_t)((uint32_t)(uint16_t)dil << 8);
+        }
+        r0.cycle = (RamCycle)d.ram_cycle;
+        r0.io = d.ram_access == A_IO;
+        const int32_t offset = gpr[pc];
+        switch (d.ram_access) {           // (see step())
+        case A_DELAY: {
+            uint32_t len = ((uint32_t)dlength >> memshift) + 1;
+            uint32_t w = ((uint32_t)dbase >> memshift) + ((uint32_t)(offset & 0x00ffffff) >> memshift);
+            if (w >= len) { w -= len; if (w >= len) w %= len; }
+            r0.address = (int32_t)w & (memmask >> memshift);
+            break;
+        }
+        case A_TABLE_A: r0.address = (((abase & memmask) + offset) & memmask) >> memshift; break;
+        case A_TABLE_B: r0.address = (((bbase & memmask) + offset) & memmask) >> memshift; break;
+        default: r0.address = offset & 0x00fffff0; break;
+        }
+        // the previous instruction's multiplier result
+        if (mw) {
+            mw = false;
+            const int64_t prod = ((int64_t)sext24(mc) * (int64_t)sext24(md)) << mulshift;
+            const int64_t res = macc ? prod + machl : prod;
+            mac_overflow = (res < -((int64_t)1 << 47) || res >= ((int64_t)1 << 47));
+            machl = res;
+            const int32_t tmp = mac_overflow ? (machl < 0 ? 0x00800000 : 0x007fffff) : (int32_t)((res & 0x0000ffffff000000ULL) >> 24);
+            gpr[242] = mac_overflow ? (machl < 0 ? 0x00000000 : 0x00ffffff) : (int32_t)(machl & 0x00ffffff);
+            gpr[243] = tmp;
+            if (mwr < 0xc0 || mwr >= 0x100) gpr[mwr] = tmp & 0x00ffffff;   // (a GPR, or nowhere)
+            else write_reg((uint8_t)mwr, tmp);
+            if (mdst & DELAY) write_to_dol(tmp);
+        }
+        // this instruction's multiplier operands
+        mcreg = d.cReg; mdst = d.mac_dst; macc = d.acc; mwr = d.mac_w;
+        mc = gpr[d.c_src];
+        md = gpr[d.dReg];
+        // the previous instruction's ALU result
+        if (aw) {
+            aw = false;
+            if (aop != 0xf) {
+                uint8_t flags = ccr;
+                const int32_t res = alu_operation(aop, aa, ab, flags);
+                if (awr < 0xc0 || awr >= 0x100) gpr[awr] = res & 0x00ffffff;
+                else write_reg((uint8_t)awr, res);
+                if (aop != 4 && (adst & DELAY)) write_to_dol(res);
+                if (aupd && !(awr == 0xfa && ccr_write_wins)) { ccr = flags; gpr[250] = ccr << 16; }
+            }
+        }
+        // the skip test, with the CCR the previous instruction left
+        bool skip = false;
+        if (d.skippable) {
+            bool cond = (ccr & cmr & FLAG_MASK) != 0;
+            if (isFlagSet(cmr, FLAG_NOT)) cond = !cond;
+            skip = cond;
+        }
+        mw = !skip;
+        areg = d.aReg; aop = d.op; adst = d.alu_dst; awr = d.alu_w;
+        aw = !skip || aop == 4;
+        aupd = !d.skippable || aop == 4;
+        bool ended = false;
+        if (aop == 0xf) {
+            alu_operation_end();
+            ended = true;
+        } else if (d.one_operand) {
+            ab = gpr[d.b1_src];
+        } else {
+            aa = gpr[d.a_src];
+            ab = gpr[d.bReg];
+        }
+        ram_write_cycle(r1);
+        if (ended) {
+            pc = 0;
+            if (state == HALTED) { store(); drain_pipeline(); load(); }
+        } else if (++pc >= 160) pc = 0;
+        if (at_end || state == HALTED) break;
     }
+    store();
 }
 
 // ---------------------------------------------------------------- debug listing

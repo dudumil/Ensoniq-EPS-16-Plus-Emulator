@@ -16,8 +16,8 @@ Eps16 *g_machine = nullptr;
 
 extern "C" {
 unsigned int m68k_read_memory_8(unsigned int a) { return g_machine->read(a, 1); }
-unsigned int m68k_read_memory_16(unsigned int a) { return g_machine->read(a, 2); }
-unsigned int m68k_read_memory_32(unsigned int a) { return g_machine->read(a, 4); }
+unsigned int m68k_read_memory_16(unsigned int a) { return g_machine->read16(a); }
+unsigned int m68k_read_memory_32(unsigned int a) { return g_machine->read32(a); }
 void m68k_write_memory_8(unsigned int a, unsigned int v) { g_machine->write(a, v, 1); }
 void m68k_write_memory_16(unsigned int a, unsigned int v) { g_machine->write(a, v, 2); }
 void m68k_write_memory_32(unsigned int a, unsigned int v) { g_machine->write(a, v, 4); }
@@ -60,6 +60,12 @@ Eps16::Eps16() {
     otis.read_sample = [this](int bank, uint32_t addr) -> uint16_t {
         if (!bank || addr >= wave_words) return 0;
         return wave[addr];
+    };
+    otis.read_sample_ctx = this;
+    otis.read_sample_fn = [](void *ctx, int bank, uint32_t addr) -> uint16_t {   // (the same, without std::function)
+        const Eps16 *m = (const Eps16 *)ctx;
+        if (!bank || addr >= m->wave_words) return 0;
+        return m->wave[addr];
     };
     otis.read_pot = [this]() -> uint16_t {
         int sel = ((op_pins >> 6) & 1) | (((op_pins >> 4) & 1) << 1) | (((op_pins >> 5) & 1) << 2);
