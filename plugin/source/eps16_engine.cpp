@@ -28,6 +28,7 @@ Eps16Engine::Eps16Engine() { cpu_ctx.resize(m68k_context_size()); }
 Eps16Engine::~Eps16Engine() {
     std::lock_guard<std::mutex> g(g_mx);
     if (m && m->fdc.dirty) m->fdc.save();
+    if (m && m->flash.dirty) m->flash.save(flash_file());
     if (g_owner == this) g_owner = nullptr;
     m.reset();
     g_machine = g_owner ? g_owner->m.get() : nullptr;
@@ -204,6 +205,23 @@ void Eps16Engine::analog(int ch, uint16_t v) {
 void Eps16Engine::save_floppy() {
     std::lock_guard<std::mutex> g(g_mx);
     if (m && m->fdc.dirty && m->fdc.save()) set_status("Disk saved: " + m->fdc.path);
+    if (m && m->flash.dirty) m->flash.save(flash_file());
+}
+
+// the FB-2 Flash Bank's contents: fb2.bin in the per-user folder, the same file as the stand-alone program's
+std::string Eps16Engine::flash_file() const { return (fs::u8path(user_dir) / "fb2.bin").u8string(); }
+
+// (editor timer, ~2 s) the flash is written to its file once it has stopped changing
+void Eps16Engine::flash_tick() {
+    std::vector<uint8_t> copy;
+    {
+        std::lock_guard<std::mutex> g(g_mx);
+        if (!ok || !m || !m->flash.dirty) return;
+        if (m->flash.changes != flash_seen) { flash_seen = m->flash.changes; return; }
+        copy = m->flash.mem;
+        m->flash.dirty = false;
+    }
+    if (!FlashBank::write_file(flash_file(), copy)) set_status("Cannot write " + flash_file());
 }
 
 void Eps16Engine::insert_files(const std::vector<std::string> &files) {
@@ -293,6 +311,11 @@ void Eps16Engine::apply_settings(Eps16 &a, bool first) {
     midi_channel = st.midi_remap ? st.kbd_channel : 0;
     a.bus_to_main[0] = a.bus_to_main[1] = true;
     a.aux1_mix = st.aux_pair[0] != -2;
+    if (first) a.flash.load(flash_file());
+    if (first || st.flash_bank != a.flash.installed()) {      // FB-2 fitted or removed (the contents are kept)
+        a.flash.install(st.flash_bank);
+        if (!first) { a.reset(); set_status(st.flash_bank ? "FB-2 Flash Bank installed (from the app's options): the EPS restarted" : "FB-2 Flash Bank removed (from the app's options): the EPS restarted"); }
+    }
     if (first || st.scsi_dir != scsi_folder) {
         scsi_folder = st.scsi_dir;
         std::string d = attach_scsi_folder(a);

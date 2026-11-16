@@ -1,4 +1,4 @@
-// Front-end settings (audio, MIDI), stored as "key=value" lines in asr10.cfg.
+// Front-end settings (audio, MIDI), stored as "key=value" lines in eps16.cfg.
 #pragma once
 #include <string>
 
@@ -31,6 +31,8 @@ struct Settings {
     // start-up: false = the OS is loaded from the OS disk image (floppy); true = no floppy at start, the machine
     // boots from a SCSI drive
     bool boot_scsi = false;
+    // FB-2 Flash Bank fitted (its contents are kept in fb2.bin, in the folder of eps16.cfg)
+    bool flash_bank = false;
 
     std::string path;                  // file the settings were loaded from / are saved to
     bool load(const std::string &file);
