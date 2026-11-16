@@ -281,7 +281,7 @@ void PLUGIN_API Editor::close() {
 
 void Editor::tick() {
     if (!rack) return;
-    if (++settings_ticks >= 60) { settings_ticks = 0; plug->engine().check_settings(); }   // ~2 s
+    if (++settings_ticks >= 60) { settings_ticks = 0; plug->engine().check_settings(); plug->engine().flash_tick(); }   // ~2 s
     EngineSnapshot s = plug->engine().snapshot();
     rack->update(s);
     const std::string &err = plug->engine().error();
