@@ -54,7 +54,10 @@ private:
 
     // history of the analog values (input samples)
     static const int HIST = 256;        // power of two, > A + B
-    float hist[CH][HIST] = {};
+    alignas(32) float hist[2 * HIST][CH] = {};   // the channels of a sample side by side; each sample twice (at s and s + HIST)
+    std::vector<float> tab, w;          // the kernel by phase ((P + 1) x nt), weights of one output
+    int nt = 0;
+    void build_table();
     long n = 0;                         // index of the newest input sample
     double t_next = 0;                  // time of the next output sample, in input samples
     uint32_t noise = 22222;
