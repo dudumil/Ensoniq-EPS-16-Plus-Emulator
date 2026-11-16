@@ -3,6 +3,7 @@
 #include "vstgui/lib/platform/iplatformbitmap.h"
 #include "vstgui/lib/cfileselector.h"
 #include <cstring>
+#include <string>
 #include <chrono>
 #include <algorithm>
 #include <functional>
@@ -73,6 +74,26 @@ public:
         rs.volume = (float)volume_value(); rs.data = (float)data;
         rs.disk = snap.disk; rs.drive_busy = snap.drive_busy; rs.scsi_activity = snap.scsi_activity; rs.scsi_writes = snap.scsi_writes;
         rs.power_held = power_held;
+        // draw only when something visible changed (the panel is drawn by the software renderer)
+        {
+            const uint32_t t = rs.ticks;
+            if (snap.scsi_activity != seen_scsi || snap.scsi_writes != seen_scsiw) { seen_scsi = snap.scsi_activity; seen_scsiw = snap.scsi_writes; scsi_t = t; }
+            uint64_t hb = 0;
+            for (int i = 0; i < 64; i++) if (held[i]) hb |= 1ull << i;
+            char k[256];
+            snprintf(k, sizeof k, "%llu %u %llx %.4f %.4f %d %d %u %d", (unsigned long long)snap.panel.updates, (t / 250) & 1, (unsigned long long)hb,
+                     rs.volume, rs.data, (int)snap.disk, (int)snap.drive_busy, t - scsi_t < 1500 ? t / 25 : 0, (int)power_held);
+            size_t n = strlen(k);
+            (void)n;
+            std::string key = k;                 // (and the display itself)
+            const Panel &pn = snap.panel;
+            key.append(pn.disp, Panel::COLS);
+            key.append((const char *)pn.attr, Panel::COLS);
+            key.append((const char *)pn.ind, 16); key.append((const char *)pn.ind2, 16); key.append((const char *)pn.ind3, 16);
+            key += std::to_string(pn.meter) + "," + std::to_string(pn.meter_a);
+            if (last_key == key) return;
+            last_key = key;
+        }
         off.render(rs);
         copy_pixels();
         invalid();
@@ -186,6 +207,8 @@ private:
     bool rec_latched = false, power_held = false, arrows_both = false;
     uint32_t power_t = 0;
     double data = 0.5;
+    std::string last_key;                 // what the last drawing showed
+    uint32_t seen_scsi = 0, seen_scsiw = 0, scsi_t = 0;
 };
 
 // ------------------------------------------------------------------ editor
