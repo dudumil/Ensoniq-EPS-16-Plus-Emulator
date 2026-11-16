@@ -70,7 +70,7 @@ OPTION B - build it yourself on your Mac (sections 1 to 3).
    - Boot from SCSI: Options > SCSI drives > Boot from > "No floppy: SCSI drive or Flash Bank" starts
      with an empty floppy drive and boots from a SCSI drive that has an OS on it. A red LED above
      the floppy drive blinks on SCSI activity (slowly while reading, fast while writing).
-   - FB-2 Flash Bank (1 MB for the OS and instruments): Options > Expansion. Contents in
+   - FB-2 Flash Bank (1 MB for the OS and instruments): Options > Hardware. Contents in
      fb2.bin in the same folder; FORMAT FLASH BANK first (Command > System-MIDI), hold LOAD
      and press INST to switch to the flash, SAVE INSTRUMENT / COPY OS TO DISK, instant loads.
    - MIDI: the supplied OS disk is set to MIDI MULTI (instruments 1-8 on channels 9-16); the

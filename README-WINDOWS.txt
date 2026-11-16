@@ -100,7 +100,7 @@ BOOTING FROM A SCSI DRIVE
 
 FB-2 FLASH BANK
    Ensoniq's 1 MB flash board for the OS and instruments. View > Options >
-   EXPANSION > FB-2 Flash Bank: installed (APPLY restarts the EPS with it). Its
+   HARDWARE > FB-2 Flash Bank: installed (APPLY restarts the EPS with it). Its
    contents are kept in %APPDATA%\Ensoniq\EPS16emu\fb2.bin (the VST3 uses the
    same file).
    - Format first: Command > System-MIDI > FORMAT FLASH BANK (about 45 s). This
