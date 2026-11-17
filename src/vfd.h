@@ -23,4 +23,5 @@ private:
     SDL_Texture *leg[32] = {}, *leg_glow[32] = {};
     int nleg = 0;
     void cell(const Panel &p, int i, float x, float y, float s);
+    bool blink_on = true;                  // phase of the blinking annunciators and characters
 };
