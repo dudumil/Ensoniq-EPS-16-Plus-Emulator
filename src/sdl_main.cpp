@@ -549,9 +549,11 @@ int main(int argc, char **argv) {
         return default_scsi_dir();
     };
     if (scsi_from_cfg) { std::string d = scsi_dir_of(cfg); if (!d.empty()) printf("%s", m.scsi.attach_dir(d).c_str()); }
-    // FB-2 Flash Bank: its contents live in fb2.bin next to eps16.cfg (a missing file = an erased board)
-    const std::string flash_path = (std::filesystem::u8path(cfg.path).parent_path() / "fb2.bin").u8string();
-    m.flash.load(flash_path);
+    // FB-2 Flash Bank: its contents live in flashbank/fb2.bin next to the program (or, when that folder
+    // cannot be written, next to eps16.cfg); a missing file = an erased board
+    const std::string pref_folder = std::filesystem::u8path(cfg.path).parent_path().u8string();
+    std::string flash_path = FlashBank::file_for(cfg.app_dir, pref_folder, cfg.flash_bank);
+    if (!flash_path.empty()) m.flash.load(flash_path);
     m.flash.install(cfg.flash_bank);
     uint32_t flash_seen = 0, flash_t = 0;           // the file is written once the flash has stopped changing
     std::vector<uint8_t> flash_out;
@@ -1059,7 +1061,11 @@ int main(int argc, char **argv) {
                                                              : "Restarted: booting from the OS disk image");
             }
             if (flash_changed) {          // fitting or removing a board: the EPS is switched off and on again
-                if (m.flash.dirty) m.flash.save(flash_path);
+                if (m.flash.dirty && !flash_path.empty()) m.flash.save(flash_path);
+                if (cfg.flash_bank) {     // (a board fitted for the first time: its file's place is made now)
+                    std::string p = FlashBank::file_for(cfg.app_dir, pref_folder, true);
+                    if (p != flash_path) { flash_path = p; if (!m.flash.load(flash_path)) m.flash.mem.assign(FlashBank::SIZE, 0xff); }
+                }
                 m.flash.install(cfg.flash_bank);
                 if (!boot_changed) { if (m.fdc.has_disk() && m.fdc.dirty && !readonly) m.fdc.save(); m.reset(); }
                 scsi_note = cfg.flash_bank ? "Restarted with the FB-2 Flash Bank (contents: " + flash_path + ")"

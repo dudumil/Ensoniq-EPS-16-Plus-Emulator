@@ -37,8 +37,11 @@ public:
     float Y(float v) const { return OY + (v - 155) * K; }
 
     bool init(SDL_Renderer *r);
+    bool prescale(VfdRenderer &vfd);                     // off-screen use: see rack_ui.cpp
     ~RackUI();
     void draw(const RackState &s, VfdRenderer &vfd);
+    // the parts that look different in state b than in a (window pixels; see the plug-in editor)
+    void changed_regions(const RackState &a, const RackState &b, std::vector<SDL_Rect> &out);
 
     // hit testing (logical window coordinates)
     int button_at(int x, int y) const;                   // panel button index, PATCH_L/PATCH_R or -1
@@ -57,6 +60,10 @@ private:
     SDL_Renderer *R = nullptr;
     SDL_Texture *plate = nullptr, *glow = nullptr;
     std::vector<SDL_Texture *> legend;
+    SDL_Texture *plate_px = nullptr;                     // (prescale())
+    SDL_Rect plate_dst{};
+    std::vector<SDL_Texture *> legend_px;
+    std::vector<SDL_Rect> legend_dst;
 
     struct Btn { int idx; float x, y, w, h; };
     std::vector<Btn> buttons;
@@ -73,4 +80,6 @@ private:
     void led(float cx, float cy, float w, float h, uint32_t on_colour, bool on);
     void button(const Btn &b, bool pressed);
     void slider_knob(float cx, float top, float bot, float val);
+    bool scsi_led(const RackState &s);
+    bool last_scsi_lit = false;
 };

@@ -31,7 +31,7 @@ struct Settings {
     // start-up: false = the OS is loaded from the OS disk image (floppy); true = no floppy at start, the machine
     // boots from a SCSI drive
     bool boot_scsi = false;
-    // FB-2 Flash Bank fitted (its contents are kept in fb2.bin, in the folder of eps16.cfg)
+    // FB-2 Flash Bank fitted (its contents: flashbank/fb2.bin next to the program, see FlashBank::file_for)
     bool flash_bank = false;
 
     std::string path;                  // file the settings were loaded from / are saved to

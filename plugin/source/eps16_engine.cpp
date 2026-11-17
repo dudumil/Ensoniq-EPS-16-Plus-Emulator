@@ -208,8 +208,9 @@ void Eps16Engine::save_floppy() {
     if (m && m->flash.dirty) m->flash.save(flash_file());
 }
 
-// the FB-2 Flash Bank's contents: fb2.bin in the per-user folder, the same file as the stand-alone program's
-std::string Eps16Engine::flash_file() const { return (fs::u8path(user_dir) / "fb2.bin").u8string(); }
+// the FB-2 Flash Bank's contents, the same file as the stand-alone program's: flashbank/fb2.bin next to
+// the program (the folder it records in eps16.cfg), or fb2.bin in the per-user folder
+std::string Eps16Engine::flash_file() const { return FlashBank::file_for(app_dir, user_dir, true); }
 
 // (editor timer, ~2 s) the flash is written to its file once it has stopped changing
 void Eps16Engine::flash_tick() {
@@ -311,7 +312,7 @@ void Eps16Engine::apply_settings(Eps16 &a, bool first) {
     midi_channel = st.midi_remap ? st.kbd_channel : 0;
     a.bus_to_main[0] = a.bus_to_main[1] = true;
     a.aux1_mix = st.aux_pair[0] != -2;
-    if (first) a.flash.load(flash_file());
+    if (first) { std::string f = FlashBank::file_for(app_dir, user_dir, st.flash_bank); if (!f.empty()) a.flash.load(f); }
     if (first || st.flash_bank != a.flash.installed()) {      // FB-2 fitted or removed (the contents are kept)
         a.flash.install(st.flash_bank);
         if (!first) { a.reset(); set_status(st.flash_bank ? "FB-2 Flash Bank installed (from the app's options): the EPS restarted" : "FB-2 Flash Bank removed (from the app's options): the EPS restarted"); }
