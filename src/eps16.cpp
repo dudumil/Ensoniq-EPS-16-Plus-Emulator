@@ -26,6 +26,7 @@ unsigned int m68k_read_disassembler_16(unsigned int a) { return g_machine->read(
 unsigned int m68k_read_disassembler_32(unsigned int a) { return g_machine->read(a, 4); }
 int asr_int_ack(int level) { return g_machine->int_ack(level); }
 void asr_reset_instr(void) {}
+int asr_instr_hook_on = 0;
 void asr_instr_hook(unsigned int pc) { if (g_machine->on_instr) g_machine->on_instr(pc); }
 }
 
@@ -399,6 +400,7 @@ void Eps16::eject_disk() { fdc.eject(); dskchg = false; }
 
 void Eps16::run(int64_t clocks) {
     int64_t target = total_cycles + clocks;
+    asr_instr_hook_on = on_instr ? 1 : 0;
     while ((int64_t)total_cycles < target) {
         int c = m68k_execute(16);
         if (dmac.active(0) || dmac.active(1)) c += dmac.run(64);

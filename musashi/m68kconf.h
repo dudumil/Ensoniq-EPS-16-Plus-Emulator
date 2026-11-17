@@ -217,7 +217,8 @@ int asr_int_ack(int); void asr_instr_hook(unsigned int); void asr_reset_instr(vo
  */
 #ifndef M68K_INSTRUCTION_HOOK
 #define M68K_INSTRUCTION_HOOK       M68K_OPT_SPECIFY_HANDLER
-#define M68K_INSTRUCTION_CALLBACK(pc) asr_instr_hook(pc)
+extern int asr_instr_hook_on;         /* (the hook is only called while a tracer wants it) */
+#define M68K_INSTRUCTION_CALLBACK(pc) do { if (asr_instr_hook_on) asr_instr_hook(pc); } while (0)
 #endif
 
 

@@ -81,9 +81,13 @@ private:
     int dol_count = 0;
     uint64_t instr[160];
     // the instructions decoded once (when written), for step()
-    struct Dec { uint8_t aReg, bReg, cReg, dReg, op, alu_src, alu_dst, mac_src, mac_dst, ram_cycle, ram_access, acc, skippable, one_operand; uint16_t c_src, a_src, b1_src, mac_w, alu_w; };
+    struct Dec { uint8_t aReg, bReg, cReg, dReg, op, alu_src, alu_dst, mac_src, mac_dst, ram_cycle, ram_access, acc, skippable, one_operand; uint16_t c_src, a_src, b1_src, mac_w, alu_w;
+                 // for run_frame(): the RAM cycle is an I/O one; the result goes to a special register;
+                 // the ALU updates the CCR (upd[ccr_write_wins]: not when it is a MOV into the CCR that wins)
+                 uint8_t ram_io, mac_spec, alu_spec, aupd, upd[2]; };
     Dec dec[160];
     void decode(int i);
+    void finish_dec(Dec &d);
     bool itrace = false, hostlog = false;   // debug (ESP_ITRACE / ESP_HOSTLOG environment variables)
     std::vector<int16_t> dram;
 
