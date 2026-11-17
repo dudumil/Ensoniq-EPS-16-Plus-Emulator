@@ -149,6 +149,15 @@ It works as on the real unit, because the OS (boot ROM) itself drives the flash 
 - **Boot:** with the OS in the flash and no floppy in the drive (Options › SCSI drives › *Boot from* ›
   "No floppy"), the EPS starts from the flash in about a second after the floppy check.
 
+## D/A converters
+
+The outputs go through a model of the EPS-16 Plus's Philips TDA1541A converters (16-bit words with
+each chip's small bit-weight errors, no oversampling filter so each sample is held for a whole period)
+and of the main board's analog section after them (I/V converter, low-pass filter, coupling
+capacitor; the OEX-6 has the same circuit), then are resampled to the computer's rate.
+Options › Hardware › **D/A converters**: *TDA1541A (as the EPS-16 Plus)* (default) or *Ideal (perfect
+converter)*, which only resamples.
+
 ## VST3 plug-in
 
 1. Copy the whole `VST3\EPS16.vst3` folder to `C:\Program Files\Common Files\VST3` (Windows) or to

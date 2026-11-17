@@ -73,6 +73,7 @@ OPTION B - build it yourself on your Mac (sections 1 to 3).
    - FB-2 Flash Bank (1 MB for the OS and instruments): Options > Hardware. Contents in
      flashbank/fb2.bin next to the app; FORMAT FLASH BANK first (Command > System-MIDI), hold LOAD
      and press INST to switch to the flash, SAVE INSTRUMENT / COPY OS TO DISK, instant loads.
+   - D/A converters (Options > Hardware): TDA1541A as the EPS-16 Plus (default) or Ideal.
    - MIDI: the supplied OS disk is set to MIDI MULTI (instruments 1-8 on channels 9-16); the
      on-screen keyboard plays on the "Keyboard channel" (Options, default 9).
 

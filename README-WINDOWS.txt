@@ -101,6 +101,12 @@ BOOTING FROM A SCSI DRIVE
    the program: a copy left in %APPDATA%\Ensoniq\EPS16emu is not used, so
    deleting os130.img from roms really removes it.
 
+D/A CONVERTERS
+   View > Options > HARDWARE > D/A converters: "TDA1541A (as the EPS-16 Plus)"
+   (default) models the EPS's converters and the analog section after them
+   (16-bit steps, each sample held for a whole period, the output filter);
+   "Ideal (perfect converter)" only resamples to the sound card's rate.
+
 FB-2 FLASH BANK
    Ensoniq's 1 MB flash board for the OS and instruments. View > Options >
    HARDWARE > FB-2 Flash Bank: installed (APPLY restarts the EPS with it). Its
