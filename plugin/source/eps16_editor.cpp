@@ -6,6 +6,7 @@
 #include <string>
 #include <chrono>
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <filesystem>
 
@@ -90,13 +91,18 @@ public:
             key.append(pn.disp, Panel::COLS);
             key.append((const char *)pn.attr, Panel::COLS);
             key.append((const char *)pn.ind, 16); key.append((const char *)pn.ind2, 16); key.append((const char *)pn.ind3, 16);
-            key += std::to_string(pn.meter) + "," + std::to_string(pn.meter_a);
+            key += std::to_string(pn.meter) + "," + std::to_string(pn.meter_a) + "," + std::to_string(pn.meter_peak);
             if (last_key == key) return;
             last_key = key;
         }
-        off.render(rs);
-        copy_pixels();
-        invalid();
+        // only what changed is drawn again, copied, and invalidated
+        if (!off.render(rs)) return;
+        const SDL_Rect d = off.dirty();
+        copy_pixels(d.x, d.y, d.w, d.h);
+        const CRect v = getViewSize();
+        const double sc = v.getWidth() / (double)off.width();
+        CRect inv(v.left + std::floor(d.x * sc) - 1, v.top + std::floor(d.y * sc) - 1, v.left + std::ceil((d.x + d.w) * sc) + 1, v.top + std::ceil((d.y + d.h) * sc) + 1);
+        invalidRect(inv);
     }
 
     void draw(CDrawContext *ctx) override {
@@ -175,7 +181,7 @@ private:
         if (drag == 1) plug->edit_volume(v), plug->engine().analog(Eps16::AN_VOLUME, (uint16_t)(v * 1023));
         else { data = v; plug->engine().analog(Eps16::AN_DATA, (uint16_t)(280 + v * (985 - 280))); }
     }
-    void copy_pixels() {
+    void copy_pixels(int x0, int y0, int cw, int ch) {
         auto pb = bmp->getPlatformBitmap();
         auto acc = pb->lockPixels(true);
         if (!acc) return;
@@ -183,10 +189,12 @@ private:
         uint32_t bpr = acc->getBytesPerRow();
         int w = std::min<int>(off.width(), (int)pb->getSize().x), h = std::min<int>(off.height(), (int)pb->getSize().y);
         auto fmt = acc->getPixelFormat();
-        for (int y = 0; y < h; y++) {
+        const int xe = std::min(w, x0 + cw), ye = std::min(h, y0 + ch);
+        for (int y = std::max(0, y0); y < ye; y++) {
             const uint32_t *src = (const uint32_t *)((const uint8_t *)off.pixels() + (size_t)y * off.pitch());
             uint8_t *d = dst + (size_t)y * bpr;
-            for (int x = 0; x < w; x++, d += 4) {
+            d += (size_t)std::max(0, x0) * 4;
+            for (int x = std::max(0, x0); x < xe; x++, d += 4) {
                 uint32_t c = src[x];
                 uint8_t r = (uint8_t)(c >> 16), g = (uint8_t)(c >> 8), b = (uint8_t)c, a = 255;
                 switch (fmt) {

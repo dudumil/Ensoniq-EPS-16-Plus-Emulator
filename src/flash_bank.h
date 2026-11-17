@@ -49,6 +49,11 @@ public:
     bool load(const std::string &path);             // a missing file = a new (erased) board
     bool save(const std::string &path);
     static bool write_file(const std::string &path, const std::vector<uint8_t> &data);
+    // where the contents are kept: fb2.bin in a "flashbank" folder next to the program (app_dir, the
+    // folder the stand-alone program records for the plug-in too), else in the per-user folder (when
+    // the program's folder cannot be written). create: make the folder (the board is fitted); a file
+    // from the old place (the per-user folder) is moved there. "" = no file yet and none wanted.
+    static std::string file_for(const std::string &app_dir, const std::string &user_dir, bool create);
 
 private:
     enum Mode : uint8_t { READ, IDENT, ERASE_SETUP, ERASING, ERASE_VERIFY, PROG_SETUP, PROGRAMMING, PROG_VERIFY, RESET1 };

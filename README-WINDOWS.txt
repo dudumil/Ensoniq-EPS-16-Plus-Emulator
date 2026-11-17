@@ -101,8 +101,9 @@ BOOTING FROM A SCSI DRIVE
 FB-2 FLASH BANK
    Ensoniq's 1 MB flash board for the OS and instruments. View > Options >
    HARDWARE > FB-2 Flash Bank: installed (APPLY restarts the EPS with it). Its
-   contents are kept in %APPDATA%\Ensoniq\EPS16emu\fb2.bin (the VST3 uses the
-   same file).
+   contents are kept in the "flashbank" folder next to eps16.exe (fb2.bin; the
+   VST3 uses the same file). If that folder cannot be written (e.g. under
+   Program Files) it goes in %APPDATA%\Ensoniq\EPS16emu.
    - Format first: Command > System-MIDI > FORMAT FLASH BANK (about 45 s). This
      is the only way to free space: files cannot be deleted one by one.
    - Hold LOAD and press INST to switch between the flash and the floppy/SCSI.

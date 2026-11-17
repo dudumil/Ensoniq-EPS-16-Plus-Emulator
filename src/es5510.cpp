@@ -371,6 +371,16 @@ void ES5510::decode(int i) {
     auto target = [](uint8_t r) -> uint16_t { return (r < 0xc0 || (r >= 234 && r <= 251)) ? r : TRASH; };
     d.mac_w = (d.mac_dst & REG) ? target(d.cReg) : TRASH;
     d.alu_w = ((d.alu_dst & REG) && d.op != 4) ? target(d.aReg) : TRASH;     // (CMP writes no result)
+    finish_dec(d);
+}
+
+void ES5510::finish_dec(Dec &d) {
+    d.ram_io = d.ram_access == A_IO;
+    d.mac_spec = d.mac_w >= 0xc0 && d.mac_w < 0x100;
+    d.alu_spec = d.alu_w >= 0xc0 && d.alu_w < 0x100;
+    d.aupd = !d.skippable || d.op == 4;
+    d.upd[0] = d.aupd;
+    d.upd[1] = d.aupd && d.alu_w != 0xfa;
 }
 
 void ES5510::run_frame() {
@@ -401,28 +411,46 @@ void ES5510::run_frame() {
     // results, RAM cycles) is kept in local variables for the whole frame, and every register
     // read is one load from gpr[] (the special registers are kept there as copies).
     Ram r0 = ram, r1 = ram_p, r2 = ram_pp;
-    bool mw = mulacc.write_result, macc = mulacc.accumulate;
-    int32_t mc = mulacc.cValue, md = mulacc.dValue;
-    uint8_t mdst = mulacc.dst, mcreg = mulacc.cReg;
-    bool aw = alu.write_result, aupd = alu.update_ccr;
-    uint8_t aop = alu.op, adst = alu.dst, areg = alu.aReg;
-    int32_t aa = alu.aValue, ab = alu.bValue;
+    // the pending multiplier and ALU operations: the dynamic part in locals, the rest is the decoded
+    // instruction they came from (pm, pa); at the start of a frame, from the saved state
+    bool mw = mulacc.write_result, aw = alu.write_result;
+    int32_t mc = mulacc.cValue, md = mulacc.dValue, aa = alu.aValue, ab = alu.bValue;
+    Dec pm0{}, pa0{};
     auto target = [](uint8_t r) -> uint16_t { return (r < 0xc0 || (r >= 234 && r <= 251)) ? r : TRASH; };
-    uint16_t mwr = (mdst & REG) ? target(mcreg) : TRASH, awr = ((adst & REG) && aop != 4) ? target(areg) : TRASH;
+    auto from_saved = [&]() {
+        pm0.cReg = mulacc.cReg; pm0.mac_dst = mulacc.dst; pm0.acc = mulacc.accumulate;
+        pm0.mac_w = (pm0.mac_dst & REG) ? target(pm0.cReg) : TRASH;
+        pa0.aReg = alu.aReg; pa0.op = alu.op; pa0.alu_dst = alu.dst;
+        pa0.alu_w = ((pa0.alu_dst & REG) && pa0.op != 4) ? target(pa0.aReg) : TRASH;
+        finish_dec(pm0); finish_dec(pa0);
+        pa0.aupd = alu.update_ccr; pa0.upd[0] = pa0.aupd; pa0.upd[1] = pa0.aupd && pa0.alu_w != 0xfa;
+    };
+    from_saved();
+    const Dec *pm = &pm0, *pa = &pa0;
+    const int cww = ccr_write_wins ? 1 : 0;
     auto store = [&]() {
         ram = r0; ram_p = r1; ram_pp = r2;
-        mulacc.write_result = mw; mulacc.accumulate = macc; mulacc.cValue = mc; mulacc.dValue = md; mulacc.dst = mdst; mulacc.cReg = mcreg;
-        alu.write_result = aw; alu.update_ccr = aupd; alu.op = aop; alu.dst = adst; alu.aReg = areg; alu.aValue = aa; alu.bValue = ab;
+        mulacc.write_result = mw; mulacc.accumulate = pm->acc; mulacc.cValue = mc; mulacc.dValue = md; mulacc.dst = pm->mac_dst; mulacc.cReg = pm->cReg;
+        alu.write_result = aw; alu.update_ccr = pa->aupd; alu.op = pa->op; alu.dst = pa->alu_dst; alu.aReg = pa->aReg; alu.aValue = aa; alu.bValue = ab;
     };
     auto load = [&]() {
         r0 = ram; r1 = ram_p; r2 = ram_pp;
-        mw = mulacc.write_result; macc = mulacc.accumulate; mc = mulacc.cValue; md = mulacc.dValue; mdst = mulacc.dst; mcreg = mulacc.cReg;
-        aw = alu.write_result; aupd = alu.update_ccr; aop = alu.op; adst = alu.dst; areg = alu.aReg; aa = alu.aValue; ab = alu.bValue;
-        mwr = (mdst & REG) ? target(mcreg) : TRASH; awr = ((adst & REG) && aop != 4) ? target(areg) : TRASH;
+        mw = mulacc.write_result; mc = mulacc.cValue; md = mulacc.dValue;
+        aw = alu.write_result; aa = alu.aValue; ab = alu.bValue;
+        from_saved(); pm = &pm0; pa = &pa0;
     };
+    // a result into a special register: the serial outputs inline (the common case), the others
+    // through write_reg()
+#define ESP_WRITE_SPECIAL(r, v) do { const uint16_t r_ = (r); \
+        if (r_ >= 234 && r_ <= 241) { const int k_ = (r_ - 234) ^ 1; ser[k_] = (int16_t)((((v) & 0x00ffffff) >> 8) & 0xffff); gpr[r_] = ser[k_] << 8; } \
+        else if (r_ == 242 || r_ == 243) { \
+            if (r_ == 242) machl = sext48((machl & ((int64_t)0x00ffffff << 24)) | (int64_t)((v) & 0x00ffffff)); \
+            else { machl = sext48((machl & (int64_t)0x00ffffff) | ((int64_t)((v) & 0x00ffffff) << 24)); mac_overflow = false; } \
+            gpr[242] = mac_overflow ? (machl < 0 ? 0x00000000 : 0x00ffffff) : (int32_t)(machl & 0x00ffffff); \
+            gpr[243] = mac_overflow ? (machl < 0 ? 0x00800000 : 0x007fffff) : (int32_t)((machl >> 24) & 0x00ffffff); } \
+        else write_reg((uint8_t)r_, (v)); } while (0)
     for (int i = 0; i < 160 + 2; i++) {
         const Dec &d = dec[pc];
-        const bool at_end = d.op == 0x0f;
         // the RAM pipeline: the read issued two cycles ago arrives in DIL
         r2 = r1; r1 = r0;
         if (r2.cycle != WRITE) {
@@ -431,7 +459,7 @@ void ES5510::run_frame() {
             gpr[DIL_SRC] = (int32_t)((uint32_t)(uint16_t)dil << 8);
         }
         r0.cycle = (RamCycle)d.ram_cycle;
-        r0.io = d.ram_access == A_IO;
+        r0.io = d.ram_io;
         const int32_t offset = gpr[pc];
         switch (d.ram_access) {           // (see step())
         case A_DELAY: {
@@ -449,30 +477,30 @@ void ES5510::run_frame() {
         if (mw) {
             mw = false;
             const int64_t prod = ((int64_t)sext24(mc) * (int64_t)sext24(md)) << mulshift;
-            const int64_t res = macc ? prod + machl : prod;
+            const int64_t res = pm->acc ? prod + machl : prod;
             mac_overflow = (res < -((int64_t)1 << 47) || res >= ((int64_t)1 << 47));
             machl = res;
             const int32_t tmp = mac_overflow ? (machl < 0 ? 0x00800000 : 0x007fffff) : (int32_t)((res & 0x0000ffffff000000ULL) >> 24);
             gpr[242] = mac_overflow ? (machl < 0 ? 0x00000000 : 0x00ffffff) : (int32_t)(machl & 0x00ffffff);
             gpr[243] = tmp;
-            if (mwr < 0xc0 || mwr >= 0x100) gpr[mwr] = tmp & 0x00ffffff;   // (a GPR, or nowhere)
-            else write_reg((uint8_t)mwr, tmp);
-            if (mdst & DELAY) write_to_dol(tmp);
+            if (!pm->mac_spec) gpr[pm->mac_w] = tmp & 0x00ffffff;   // (a GPR, or nowhere)
+            else ESP_WRITE_SPECIAL(pm->mac_w, tmp);
+            if (pm->mac_dst & DELAY) write_to_dol(tmp);
         }
         // this instruction's multiplier operands
-        mcreg = d.cReg; mdst = d.mac_dst; macc = d.acc; mwr = d.mac_w;
+        pm = &d;
         mc = gpr[d.c_src];
         md = gpr[d.dReg];
         // the previous instruction's ALU result
         if (aw) {
             aw = false;
-            if (aop != 0xf) {
+            if (pa->op != 0xf) {
                 uint8_t flags = ccr;
-                const int32_t res = alu_operation(aop, aa, ab, flags);
-                if (awr < 0xc0 || awr >= 0x100) gpr[awr] = res & 0x00ffffff;
-                else write_reg((uint8_t)awr, res);
-                if (aop != 4 && (adst & DELAY)) write_to_dol(res);
-                if (aupd && !(awr == 0xfa && ccr_write_wins)) { ccr = flags; gpr[250] = ccr << 16; }
+                const int32_t res = alu_operation(pa->op, aa, ab, flags);
+                if (!pa->alu_spec) gpr[pa->alu_w] = res & 0x00ffffff;
+                else ESP_WRITE_SPECIAL(pa->alu_w, res);
+                if (pa->op != 4 && (pa->alu_dst & DELAY)) write_to_dol(res);
+                if (pa->upd[cww]) { ccr = flags; gpr[250] = ccr << 16; }
             }
         }
         // the skip test, with the CCR the previous instruction left
@@ -483,26 +511,21 @@ void ES5510::run_frame() {
             skip = cond;
         }
         mw = !skip;
-        areg = d.aReg; aop = d.op; adst = d.alu_dst; awr = d.alu_w;
-        aw = !skip || aop == 4;
-        aupd = !d.skippable || aop == 4;
-        bool ended = false;
-        if (aop == 0xf) {
+        pa = &d;
+        aw = !skip || d.op == 4;
+        if (d.op == 0xf) {
             alu_operation_end();
-            ended = true;
-        } else if (d.one_operand) {
-            ab = gpr[d.b1_src];
-        } else {
-            aa = gpr[d.a_src];
-            ab = gpr[d.bReg];
-        }
-        ram_write_cycle(r1);
-        if (ended) {
+            ram_write_cycle(r1);
             pc = 0;
             if (state == HALTED) { store(); drain_pipeline(); load(); }
-        } else if (++pc >= 160) pc = 0;
-        if (at_end || state == HALTED) break;
+            break;                        // (END)
+        }
+        if (d.one_operand) ab = gpr[d.b1_src];
+        else { aa = gpr[d.a_src]; ab = gpr[d.bReg]; }
+        ram_write_cycle(r1);
+        if (++pc >= 160) pc = 0;
     }
+#undef ESP_WRITE_SPECIAL
     store();
 }
 
