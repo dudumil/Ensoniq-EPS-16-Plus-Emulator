@@ -128,8 +128,10 @@ FORMAT SCSI DRIVE does it, so it is ready to use. Reset the EPS so that the OS s
 
 The FB-2 was Ensoniq's flash memory board for the EPS-16 Plus: four Intel 28F020 chips (1 MB) on the
 sound memory expansion connector. Turn it on in Options › Expansion › *FB-2 Flash Bank*; the EPS
-restarts with the board fitted. Its contents are kept in `fb2.bin`, in the same folder as `eps16.cfg`
-(the VST3 plug-in uses the same file).
+restarts with the board fitted. Its contents are kept in `flashbank/fb2.bin`, a folder next to the
+program (next to its `roms` folder; on macOS next to the .app). The VST3 plug-in uses the same file.
+If that folder cannot be written (e.g. the program is under Program Files) the file goes in the
+per-user folder, with `eps16.cfg`.
 
 It works as on the real unit, because the OS (boot ROM) itself drives the flash chips:
 
