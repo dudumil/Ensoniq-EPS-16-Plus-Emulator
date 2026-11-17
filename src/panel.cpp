@@ -8,6 +8,9 @@ void Panel::reset() {
     memset(disp, ' ', sizeof(disp));
     memset(attr, 0, sizeof(attr));
     memset(ind, 0, sizeof(ind)); memset(ind2, 0, sizeof(ind2)); memset(ind3, 0, sizeof(ind3));
+    // at power-up the panel lights the eight yellow ("selected") instrument LEDs: the boot ROM
+    // leaves them alone, and the OS turns all the LEDs off when it starts (after LOADING SYSTEM)
+    for (int i = 8; i < 16; i++) ind[i] = 1;
     cx = 0; pending = 0; meter = meter_peak = 0; meter_follow = 0; mode60 = 0; attr_active = false;
 }
 

@@ -138,6 +138,7 @@ int main(int argc, char **argv) {
     double step = 0.01;
     std::map<uint32_t, int> pcs;
     bool pcprof = getenv("EPS_PCPROF") != nullptr;
+    const bool show_ind = getenv("EPS_IND") != nullptr;   // instrument LED states on the display trace
     const double fdc_log_t = getenv("EPS_FDC_LOG") ? atof(getenv("EPS_FDC_LOG")) : -1;   // log floppy commands from time t
     for (double t = 0; t < secs; t += step) {
         if (fdc_log_t >= 0 && t >= fdc_log_t && !m.fdc.log) { m.fdc.log = true; fprintf(stderr, "[%.2f fdc log on]\n", t); }
@@ -154,6 +155,7 @@ int main(int argc, char **argv) {
         m.run((int64_t)(m.cpu_clock * step));
         if (pcprof) pcs[m.last_pc() & ~0xf]++;
         std::string d = m.panel.text() + " | " + m.panel.annunciators();
+        if (show_ind) { d += " | ind="; for (int i = 0; i < 16; i++) d += (char)('0' + m.panel.ind[i]); }
         if (d != lastd) { printf("%7.3f |%s\n", t, d.c_str()); fflush(stdout); lastd = d; }
         out.insert(out.end(), m.audio.begin(), m.audio.end()); m.audio.clear();
     }
