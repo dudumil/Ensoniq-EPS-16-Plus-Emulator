@@ -7,7 +7,8 @@
 //   $20-$5F      character at cursor, cursor advances
 //   $66          home / clear line
 //   $74 n        indicator n off     $75 n  indicator n on     $76 n  indicator n blinking
-//   $60 a        attribute for the following characters (1 = normal, 3 = underlined)
+//   $60 a        attribute for the following characters: bit 0 = steady (0 = blinking, e.g.
+//                "* FORMATTING *", "SAVING ..."), bit 1 = underlined (1 normal, 3 underlined)
 //   $77/$78/$79 n  annunciator n of the left group on/off/blink (LOAD, INST, ... WAVE)
 //   $7A/$7B/$7C n  annunciator n of the right group on/off/blink (ENV, ODUB, ... CLOCK)
 //   $73 a b      bar graph (input level on the sampling page): b = number of lit cells
@@ -46,7 +47,7 @@ public:
     std::string attr_line(int t) const;    // '^' where attribute t is set
     static constexpr int COLS = 22;
     char    disp[COLS];
-    uint8_t attr[COLS];                    // bit 0 = underlined text ($60 3), bit 1 = edit cursor ($67)
+    uint8_t attr[COLS];                    // bit 0 = underlined text ($60 3), bit 1 = edit cursor ($67), bit 2 = blinking ($60 0)
     uint8_t ind[16];                       // indicator states 0 off 1 on 2 blink: 0-7 red "loaded", 8-15 yellow "selected"
     uint8_t ind2[16];                      // left annunciators ($77 on / $78 off / $79 blink), 0 off 1 on 2 blink
     uint8_t ind3[16];                      // right annunciators ($7A on / $7B off / $7C blink)
