@@ -144,6 +144,7 @@ void VfdRenderer::cell(const Panel &p, int i, float x, float y, float s) {
     uint16_t mask = (ch >= 0x20 && ch < 0x60) ? VFD_CHARSET[ch - 0x20] : 0;
     if (ch == ' ' && (i < p.meter || (p.meter_peak > 0 && i == p.meter_peak - 1))) mask = 0x1236;   // level meter (b c e f i l), with the peak-hold cell
     uint32_t m = mask | ((p.attr[i] & 3) ? 1u << 15 : 0);
+    if ((p.attr[i] & 4) && !blink_on) m = 0;          // blinking text ($60 0): dark with the blinking annunciators
     SDL_FRect dst{x - GX * s, y - GY * s, CW * s, CH * s};
     for (int n = 0; n < NSEG; n++) {
         if (m & (1u << n)) continue;
@@ -159,6 +160,7 @@ void VfdRenderer::cell(const Panel &p, int i, float x, float y, float s) {
 
 void VfdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s, bool glass) {
     const bool blink = (ticks / 250) & 1;
+    blink_on = blink;
     if (glass) {
         SDL_FRect g{x, y, WIDTH * s, HEIGHT * s};
         SDL_SetRenderDrawColor(R, 0x04, 0x07, 0x08, 255); SDL_RenderFillRectF(R, &g);

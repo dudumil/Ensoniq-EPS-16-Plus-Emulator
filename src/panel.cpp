@@ -22,7 +22,7 @@ void Panel::put(uint8_t c) {
         disp[cx] = (c >= 0x20 && c < 0x7f) ? c : '?';
         // the text attribute set by $60 applies until the end of the field ($72); later writes
         // (e.g. the bar counter updated while a song plays) keep the cell's underline
-        if (attr_active) attr[cx] = (uint8_t)((attr[cx] & 2) | ((mode60 & 2) ? 1 : 0));   // bit 1 = edit cursor
+        if (attr_active) attr[cx] = (uint8_t)((attr[cx] & 2) | ((mode60 & 2) ? 1 : 0) | ((mode60 & 1) ? 0 : 4));   // bit 1 = edit cursor
         updates++;
     }
     if (cx < COLS) cx++;
