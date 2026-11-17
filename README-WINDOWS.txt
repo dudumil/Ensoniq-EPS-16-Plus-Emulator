@@ -209,4 +209,6 @@ The EPS-16 Plus ROM and operating system are not included.
 Component licenses are in the "licenses" folder. ASIO support uses the
 Steinberg ASIO SDK (available under GPLv3), so this program is GPLv3.
 ASIO and VST are registered trademarks of Steinberg Media Technologies GmbH.
-The plug-in uses the VST3 SDK/VSTGUI (MIT license) and SDL2 (zlib license).
+The plug-in uses the VST3 SDK (MIT license), VSTGUI (BSD-3-Clause license)
+and SDL2 (zlib license). The panel lettering is rendered from GNU FreeSans
+(GPLv3 with the font exception).
