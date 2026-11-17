@@ -66,6 +66,31 @@ void FlashBank::write8(uint32_t o, uint8_t v) {
     update_all_read();
 }
 
+std::string FlashBank::file_for(const std::string &app_dir, const std::string &user_dir, bool create) {
+    std::error_code ec;
+    const fs::path old = user_dir.empty() ? fs::path() : fs::u8path(user_dir) / "fb2.bin";
+    if (!app_dir.empty()) {
+        const fs::path dir = fs::u8path(app_dir) / "flashbank", f = dir / "fb2.bin";
+        if (fs::exists(f, ec)) return f.u8string();
+        if (create) {
+            fs::create_directories(dir, ec);
+            // (a folder that cannot be written, e.g. under Program Files, is not used)
+            const fs::path probe = dir / ".write-test";
+            FILE *t = fs::is_directory(dir, ec) ? u8fopen(probe.u8string().c_str(), "wb") : nullptr;
+            if (t) {
+                fclose(t); fs::remove(probe, ec);
+                if (!old.empty() && fs::exists(old, ec)) {          // the file from the old place moves here
+                    fs::rename(old, f, ec);
+                    if (ec) { ec.clear(); fs::copy_file(old, f, ec); }
+                }
+                return f.u8string();
+            }
+        }
+    }
+    if (!old.empty() && (create || fs::exists(old, ec))) return old.u8string();
+    return std::string();
+}
+
 bool FlashBank::load(const std::string &p) {
     FILE *f = u8fopen(p.c_str(), "rb");
     if (!f) return false;

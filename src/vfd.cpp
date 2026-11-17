@@ -103,6 +103,65 @@ VfdRenderer::~VfdRenderer() {
     for (auto *t : seg_glow) if (t) SDL_DestroyTexture(t);
     for (auto *t : leg) if (t) SDL_DestroyTexture(t);
     for (auto *t : leg_glow) if (t) SDL_DestroyTexture(t);
+    for (auto *t : pseg) if (t) SDL_DestroyTexture(t);
+    for (auto *t : pseg_glow) if (t) SDL_DestroyTexture(t);
+    for (auto *t : pleg) if (t) SDL_DestroyTexture(t);
+    for (auto *t : pleg_glow) if (t) SDL_DestroyTexture(t);
+    if (pghost) SDL_DestroyTexture(pghost);
+}
+
+namespace {
+SDL_Texture *scaled_copy(SDL_Renderer *R, SDL_Texture *src, int w, int h) {
+    if (!src || w <= 0 || h <= 0) return nullptr;
+    SDL_Texture *t = SDL_CreateTexture(R, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, w, h);
+    if (!t) return nullptr;
+    SDL_BlendMode bm; SDL_GetTextureBlendMode(src, &bm);
+    Uint8 cr, cg, cb, ca; SDL_GetTextureColorMod(src, &cr, &cg, &cb); SDL_GetTextureAlphaMod(src, &ca);
+    SDL_SetRenderTarget(R, t);
+    SDL_SetRenderDrawBlendMode(R, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(R, 0, 0, 0, 0);
+    SDL_RenderClear(R);
+    SDL_SetTextureBlendMode(src, SDL_BLENDMODE_NONE); SDL_SetTextureColorMod(src, 255, 255, 255); SDL_SetTextureAlphaMod(src, 255);
+    SDL_RenderCopy(R, src, nullptr, nullptr);
+    SDL_SetTextureBlendMode(src, bm); SDL_SetTextureColorMod(src, cr, cg, cb); SDL_SetTextureAlphaMod(src, ca);
+    SDL_SetRenderTarget(R, nullptr);
+    SDL_SetTextureBlendMode(t, bm);
+    return t;
+}
+}
+
+bool VfdRenderer::prescale(float s) {
+    const int cw = (int)(CW * s), chh = (int)(CH * s);
+    for (int n = 0; n < NSEG; n++) {
+        pseg[n] = scaled_copy(R, seg[n], cw, chh); pseg_glow[n] = scaled_copy(R, seg_glow[n], cw, chh);
+        if (!pseg[n] || !pseg_glow[n]) return false;
+    }
+    // the unlit segments all have the same colour: one texture with the union of their shapes
+    // (1 - product of (1 - alpha)) gives what drawing them one by one gives
+    {
+        std::vector<float> keep((size_t)cw * chh, 1.0f);
+        std::vector<uint32_t> px((size_t)cw * chh);
+        for (int n = 0; n < NSEG; n++) {
+            SDL_SetRenderTarget(R, pseg[n]);
+            if (SDL_RenderReadPixels(R, nullptr, SDL_PIXELFORMAT_ARGB8888, px.data(), cw * 4) != 0) { SDL_SetRenderTarget(R, nullptr); return false; }
+            for (size_t k = 0; k < px.size(); k++) keep[k] *= 1.0f - (px[k] >> 24) / 255.0f;
+        }
+        SDL_SetRenderTarget(R, nullptr);
+        for (size_t k = 0; k < px.size(); k++) px[k] = ((uint32_t)std::lround((1.0f - keep[k]) * 255) << 24) | 0xffffff;
+        pghost = SDL_CreateTexture(R, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, cw, chh);
+        if (!pghost) return false;
+        SDL_UpdateTexture(pghost, nullptr, px.data(), cw * 4);
+        SDL_BlendMode bm; SDL_GetTextureBlendMode(pseg[0], &bm); SDL_SetTextureBlendMode(pghost, bm);
+    }
+    const float pad = 3;
+    for (int i = 0; i < nleg && i < 32; i++) {
+        const VfdLegend &l = VFD_LEGENDS[i];
+        const int w = (int)((l.w + 2 * pad) * s), h = (int)((l.h + 2 * pad) * s);
+        pleg[i] = scaled_copy(R, leg[i], w, h); pleg_glow[i] = scaled_copy(R, leg_glow[i], w, h);
+        if (!pleg[i] || !pleg_glow[i]) return false;
+    }
+    ps = s;
+    return true;
 }
 
 bool VfdRenderer::init(SDL_Renderer *r) {
@@ -146,15 +205,20 @@ void VfdRenderer::cell(const Panel &p, int i, float x, float y, float s) {
     uint32_t m = mask | ((p.attr[i] & 3) ? 1u << 15 : 0);
     if ((p.attr[i] & 4) && !blink_on) m = 0;          // blinking text ($60 0): dark with the blinking annunciators
     SDL_FRect dst{x - GX * s, y - GY * s, CW * s, CH * s};
-    for (int n = 0; n < NSEG; n++) {
+    const bool pre = ps == s && ps > 0;          // (prescaled textures: copied 1:1)
+    SDL_Texture *const *sg = pre ? pseg : seg, *const *sgl = pre ? pseg_glow : seg_glow;
+    SDL_Rect di{ (int)dst.x, (int)dst.y, (int)dst.w, (int)dst.h };
+    auto copy = [&](SDL_Texture *t) { if (pre) SDL_RenderCopy(R, t, nullptr, &di); else SDL_RenderCopyF(R, t, nullptr, &dst); };
+    if (pre && pghost) { color(pghost, GHOST); copy(pghost); }   // (the lit ones are drawn over it)
+    else for (int n = 0; n < NSEG; n++) {
         if (m & (1u << n)) continue;
-        color(seg[n], GHOST); SDL_RenderCopyF(R, seg[n], nullptr, &dst);
+        color(sg[n], GHOST); copy(sg[n]);
     }
     for (int n = 0; n < NSEG; n++) {
         if (!(m & (1u << n))) continue;
-        color(seg_glow[n], LIT, 110); SDL_SetTextureBlendMode(seg_glow[n], SDL_BLENDMODE_ADD);
-        SDL_RenderCopyF(R, seg_glow[n], nullptr, &dst);
-        color(seg[n], LIT); SDL_RenderCopyF(R, seg[n], nullptr, &dst);
+        color(sgl[n], LIT, 110); SDL_SetTextureBlendMode(sgl[n], SDL_BLENDMODE_ADD);
+        copy(sgl[n]);
+        color(sg[n], LIT); copy(sg[n]);
     }
 }
 
@@ -174,12 +238,15 @@ void VfdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         bool on = st == 1 || (st == 2 && blink);
         const float pad = 3;
         SDL_FRect d{x0 + (l.x - pad) * s, ly + (l.y - pad) * s, (l.w + 2 * pad) * s, (l.h + 2 * pad) * s};
+        const bool pre = ps == s && ps > 0 && pleg[i];
+        SDL_Texture *lg = pre ? pleg[i] : leg[i], *lgg = pre ? pleg_glow[i] : leg_glow[i];
+        SDL_Rect di{ (int)d.x, (int)d.y, (int)d.w, (int)d.h };
         if (on) {
-            color(leg_glow[i], LIT, 80); SDL_SetTextureBlendMode(leg_glow[i], SDL_BLENDMODE_ADD);
-            SDL_RenderCopyF(R, leg_glow[i], nullptr, &d);
-            color(leg[i], LIT);
-        } else color(leg[i], LEG_GHOST);
-        SDL_RenderCopyF(R, leg[i], nullptr, &d);
+            color(lgg, LIT, 80); SDL_SetTextureBlendMode(lgg, SDL_BLENDMODE_ADD);
+            if (pre) SDL_RenderCopy(R, lgg, nullptr, &di); else SDL_RenderCopyF(R, lgg, nullptr, &d);
+            color(lg, LIT);
+        } else color(lg, LEG_GHOST);
+        if (pre) SDL_RenderCopy(R, lg, nullptr, &di); else SDL_RenderCopyF(R, lg, nullptr, &d);
     }
     // characters
     for (int i = 0; i < Panel::COLS; i++) cell(p, i, x0 + i * PITCH * s, cy, s);
