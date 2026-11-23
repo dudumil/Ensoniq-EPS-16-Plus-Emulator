@@ -5,7 +5,7 @@ name: Windows
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, installers ]
 env:
   LLVM_MINGW: llvm-mingw-20241217-ucrt-ubuntu-20.04-x86_64
 jobs:
