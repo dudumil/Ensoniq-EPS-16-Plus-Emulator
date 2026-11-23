@@ -226,6 +226,7 @@ Section "${PRODUCT} (program)" SecApp
     File "/oname=README.txt" "${SRC}\README.txt"
     SetOutPath "$INSTDIR\licenses"
     File "${SRC}\licenses\*.*"
+    File "${NSIS_LICENSE}"                  ; (the uninstaller is made with NSIS)
     SetOutPath "$INSTDIR\roms"
     File "${SRC}\roms\README.txt"
     ; the user's ROMs and OS disk

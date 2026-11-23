@@ -47,7 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: EPS16-Windows-Setup
-          path: dist/EPS16-Plus-Emulator-Windows-Setup.exe
+          path: dist/EPS16-Plus-Emulator-Windows-Setup.zip
   test:
     needs: build
     runs-on: windows-latest
@@ -59,6 +59,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          Expand-Archive EPS16-Plus-Emulator-Windows-Setup.zip -DestinationPath .
+          Get-ChildItem -Recurse EPS16-Plus-Emulator-Windows-Setup | Select-Object FullName
+          if (-not (Test-Path "EPS16-Plus-Emulator-Windows-Setup\README.txt")) { throw "README missing" }
+          if (-not (Test-Path "EPS16-Plus-Emulator-Windows-Setup\licenses\NSIS-LICENSE.txt")) { throw "NSIS licence missing" }
+          Copy-Item "EPS16-Plus-Emulator-Windows-Setup\EPS16-Plus-Emulator-Windows-Setup.exe" .
           $dir = "$env:ProgramFiles\EPS-16 Plus Emulator"
           $vst = "$env:CommonProgramFiles\VST3\EPS16.vst3"
           # without the ROMs and the OS disk the installer does not go on
@@ -72,7 +77,7 @@ jobs:
           $p = Start-Process -Wait -PassThru -FilePath .\EPS16-Plus-Emulator-Windows-Setup.exe -ArgumentList "/S", "/ROMLO=$PWD\lo.bin", "/ROMHI=$PWD\hi.bin", "/OS=`"$PWD\My OS.img`""
           "exit code: $($p.ExitCode)"
           Get-ChildItem -Recurse $dir | Select-Object FullName
-          foreach ($f in "eps16.exe", "eps16-cli.exe", "README.txt", "Uninstall.exe", "roms\README.txt", "scsi\README.txt", "licenses\GPL-3.0.txt", "roms\eps16plus-u27.bin", "roms\eps16plus-u28.bin", "roms\My OS.img") {
+          foreach ($f in "eps16.exe", "eps16-cli.exe", "README.txt", "Uninstall.exe", "roms\README.txt", "scsi\README.txt", "licenses\GPL-3.0.txt", "licenses\NSIS-LICENSE.txt", "roms\eps16plus-u27.bin", "roms\eps16plus-u28.bin", "roms\My OS.img") {
             if (-not (Test-Path "$dir\$f")) { throw "missing $f" }
           }
           if (-not (Test-Path "$vst\Contents\x86_64-win\EPS16.vst3")) { throw "VST3 missing" }

@@ -3,6 +3,7 @@
 # "EPS16.vst3" plug-in and the "EPS16.component" Audio Unit (Logic Pro), and packages them twice:
 #   dist/EPS16-Plus-Emulator-macOS-Portable.zip    a folder to unzip anywhere
 #   dist/EPS16-Plus-Emulator-macOS-Installer.dmg   a disk image with the installer (.pkg, with an uninstaller)
+#   dist/EPS16-Plus-Emulator-macOS-Installer.zip   that disk image with a README and the licences
 #
 # Requires:
 #   - Apple Command Line Tools (free):          xcode-select --install
@@ -80,12 +81,21 @@ cp LICENSES/*.txt musashi/LICENSE-Musashi.txt third_party/RtMidi-LICENSE.txt thi
 [ -f build-mac/_deps/sdl2-src/LICENSE.txt ] && cp build-mac/_deps/sdl2-src/LICENSE.txt "$PKG/licenses/SDL2-LICENSE.txt"
 VSTSDK_LIC=$(find build-vst/_deps -maxdepth 2 -path "*vst3sdk-src*" -name LICENSE.txt 2>/dev/null | head -1)
 [ -n "$VSTSDK_LIC" ] && cp "$VSTSDK_LIC" "$PKG/licenses/VST3-SDK-LICENSE.txt"
+rm -f "$PKG/licenses/NSIS-LICENSE.txt"            # (the Windows installer's)
 ditto -c -k --keepParent "$PKG" "dist/EPS16-Plus-Emulator-macOS-Portable.zip"
 echo "Portable package: dist/EPS16-Plus-Emulator-macOS-Portable.zip"
 
 echo "=== 3/3  installer ==="
 installer/mac/make-pkg.sh "$PKG" "dist/EPS16-Plus-Emulator-macOS-Installer.pkg"
 installer/mac/make-dmg.sh "dist/EPS16-Plus-Emulator-macOS-Installer.pkg" "dist/EPS16-Plus-Emulator-macOS-Installer.dmg"
+# the disk image, its README and the licences
+Z="dist/EPS16-Plus-Emulator-macOS-Installer"
+rm -rf "$Z" "$Z.zip"; mkdir -p "$Z/licenses"
+cp "dist/EPS16-Plus-Emulator-macOS-Installer.dmg" "$Z/"
+installer/fill-readme.sh installer/mac/README-INSTALLER.txt "$Z/README.txt"
+cp "$PKG"/licenses/*.txt "$Z/licenses/"
+ditto -c -k --keepParent "$Z" "$Z.zip"
+echo "Installer package: $Z.zip"
 
 if [ $INSTALL = 1 ]; then
     mkdir -p ~/Library/Audio/Plug-Ins/VST3

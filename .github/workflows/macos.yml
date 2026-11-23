@@ -85,4 +85,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: EPS16-macOS-Installer
-          path: dist/EPS16-Plus-Emulator-macOS-Installer.dmg
+          path: dist/EPS16-Plus-Emulator-macOS-Installer.zip

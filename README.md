@@ -30,11 +30,12 @@ for both.
 
 Get the latest release from the [Releases](../../releases) page. Each system has an **installer**
 (with an uninstaller) and a **portable** package (a folder to unzip anywhere, nothing installed).
+The installer zips hold the installer (`Setup.exe` / `.dmg`), a README and the licences.
 
 | | Installer | Portable |
 |---|---|---|
-| **Windows** (64-bit) | `EPS16-Plus-Emulator-Windows-Setup.exe` | `EPS16-Plus-Emulator-Windows-Portable.zip` |
-| **macOS** (Apple Silicon and Intel, 11 or later) | `EPS16-Plus-Emulator-macOS-Installer.dmg` | `EPS16-Plus-Emulator-macOS-Portable.zip` |
+| **Windows** (64-bit) | `EPS16-Plus-Emulator-Windows-Setup.zip` | `EPS16-Plus-Emulator-Windows-Portable.zip` |
+| **macOS** (Apple Silicon and Intel, 11 or later) | `EPS16-Plus-Emulator-macOS-Installer.zip` | `EPS16-Plus-Emulator-macOS-Portable.zip` |
 
 Both installers ask for **your own ROMs and OS disk**: the low and high firmware (`.bin`) and the
 operating system disk image (`.img`, `.hfe`, `.ede` or `.eda`). They copy them into the program's `roms`
@@ -232,7 +233,8 @@ Technical notes (emulated hardware, memory map, code layout), in Portuguese:
 - **Musashi** 68000 core by Karl Stenerud; **ES5505/ES5510** algorithms derived from MAME
   (BSD-3-Clause); **RtMidi/RtAudio** by Gary P. Scavone; **Steinberg ASIO SDK** (GPLv3);
   **SDL2** (zlib); **VST3 SDK** (MIT) and **VSTGUI** (BSD-3-Clause) by Steinberg; the macOS Audio Unit
-  is built with Apple's **AudioUnitSDK** (Apache 2.0); panel and
+  is built with Apple's **AudioUnitSDK** (Apache 2.0); the Windows installer is made with **NSIS**
+  (zlib/libpng, bzip2 and CPL licences); panel and
   options page lettering rendered from **GNU FreeFont** FreeSans (GPLv3 with the font exception);
   the 8x8 bitmap font by Daniel Hepper (public domain). The licence texts are in `LICENSES/` (and
   next to Musashi, RtMidi and RtAudio in their folders).

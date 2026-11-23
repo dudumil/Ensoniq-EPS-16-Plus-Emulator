@@ -31,6 +31,7 @@ BS='\'
     printf '!define OUTFILE "%s"\n' "$OUT"
     printf '!define ICON "%s"\n' "$ROOT/src/win/$EXE.ico"
     printf '!define SETUP_ICON "%s"\n' "$ROOT/installer/icons/setup.ico"
+    printf '!define NSIS_LICENSE "%s"\n' "$ROOT/LICENSES/NSIS-LICENSE.txt"
     printf '!define MACHINE "%s"\n' "$MACHINE"
     printf '!define ROM_SIZE %s\n' "$ROM_SIZE"
     printf '!define ROM_LO_NAME "%s"\n' "$ROM_LO_NAME"
