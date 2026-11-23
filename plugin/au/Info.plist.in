@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>@AU_EXECUTABLE@</string>
+	<key>CFBundleIdentifier</key>
+	<string>@AU_BUNDLE_ID@</string>
+	<key>CFBundleName</key>
+	<string>@AU_EXECUTABLE@</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@AU_VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@AU_VERSION@</string>
+	<key>CSResourcesFileMapped</key>
+	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+	<key>AudioComponents</key>
+	<array>
+		<dict>
+			<key>factoryFunction</key>
+			<string>AUWrapperFactory</string>
+			<key>description</key>
+			<string>@AU_NAME@</string>
+			<key>manufacturer</key>
+			<string>@AU_MANUFACTURER@</string>
+			<key>name</key>
+			<string>@AU_COMPANY@: @AU_NAME@</string>
+			<key>subtype</key>
+			<string>@AU_SUBTYPE@</string>
+			<key>type</key>
+			<string>aumu</string>
+			<key>version</key>
+			<integer>@AU_VERSION_INT@</integer>
+			<key>sandboxSafe</key>
+			<true/>
+			<key>tags</key>
+			<array>
+				<string>Sampler</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

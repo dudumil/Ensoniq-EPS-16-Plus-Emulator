@@ -1,7 +1,19 @@
 ENSONIQ EPS-16 PLUS (RACK) EMULATOR FOR WINDOWS
 ===============================================
 
-Requires Windows 10 or 11 (64-bit). No installation and no DLLs needed.
+Requires Windows 10 or 11 (64-bit). No DLLs needed.
+
+INSTALLER OR PORTABLE
+   EPS16-Plus-Emulator-Windows-Setup.exe installs the program in
+   C:\Program Files\EPS-16 Plus Emulator (its roms and scsi folders are made
+   writable for you), the VST3 plug-in in C:\Program Files\Common Files\VST3
+   (optional) and Start menu shortcuts (one opens the roms folder). Uninstall
+   with Settings > Apps or the Start menu: it asks whether to keep your ROMs,
+   disk images and settings.
+   EPS16-Plus-Emulator-Windows-Portable.zip is the same program in a folder:
+   unzip it anywhere, nothing is installed (delete the folder to remove it).
+   Windows may warn that the installer or the program is from an unknown
+   publisher (they are not signed): "More info" > "Run anyway".
 
 1. Copy into the "roms" folder (next to eps16.exe):
      eps16plus-u28.bin
@@ -197,7 +209,7 @@ KNOWN LIMITATIONS
      --real-disk-speed is given).
 
 VST3 PLUG-IN (VST3 folder)
-   1. Copy the whole VST3\EPS16.vst3 folder to
+   1. (The installer does this.) Copy the whole VST3\EPS16.vst3 folder to
         C:\Program Files\Common Files\VST3
    2. Open eps16.exe once: it records its folder and the plug-in then uses the
       same files (ROMs and os130.img from the roms folder, scsi folder).

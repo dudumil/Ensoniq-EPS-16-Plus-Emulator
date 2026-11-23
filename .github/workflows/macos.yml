@@ -1,5 +1,7 @@
-# Builds the app and the VST3 plug-in for macOS (universal: Apple Silicon and Intel) on a GitHub
-# runner, checks them, and puts the package (EPS16-Plus-Emulator-macOS.zip) under "Artifacts" on the run's page.
+# Builds the app, the VST3 plug-in and the Audio Unit for macOS (universal: Apple Silicon and Intel) on a
+# GitHub runner, checks them (auval for the Audio Unit), and puts the portable package
+# (EPS16-Plus-Emulator-macOS-Portable.zip) and the installer (EPS16-Plus-Emulator-macOS-Installer.pkg) under
+# "Artifacts" on the run's page.
 name: macOS
 on:
   workflow_dispatch:
@@ -20,6 +22,8 @@ jobs:
           echo "== architectures"
           lipo -info "$P/EPS-16-Plus.app/Contents/MacOS/$EXE"
           lipo -info "$P/VST3/EPS16.vst3/Contents/MacOS/"*
+          lipo -info "$P/AU/EPS16.component/Contents/MacOS/"*
+          lipo "$P/AU/EPS16.component/Contents/MacOS/EPS16" -verify_arch arm64 x86_64
           lipo "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" -verify_arch arm64 x86_64
           echo "== linked libraries (only the system's)"
           otool -L "$P/EPS-16-Plus.app/Contents/MacOS/$EXE"
@@ -27,13 +31,41 @@ jobs:
           echo "== signatures"
           codesign --verify --deep --strict --verbose=2 "$P/EPS-16-Plus.app"
           codesign --verify --deep --strict --verbose=2 "$P/VST3/EPS16.vst3"
+          codesign --verify --deep --strict --verbose=2 "$P/AU/EPS16.component"
           echo "== the app starts (arm64, and x86_64 under Rosetta when available)"
           "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt
           if arch -x86_64 /usr/bin/true 2>/dev/null; then arch -x86_64 "$P/EPS-16-Plus.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt; else echo "(no Rosetta on this runner)"; fi
           echo "== package contents"
           find "$P" -maxdepth 2 | sort
           if find "$P" -name "*.bin" -o -name "*.img" -o -name "*.iso" | grep .; then echo "ROM or disk image in the package"; exit 1; fi
+          echo "== Audio Unit validation (auval)"
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "$P/AU/EPS16.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          sleep 2
+          auval -a | grep -i "eps" || true
+          auval -v aumu Eps6 E16e
+          echo "== installer"
+          pkgutil --check-signature dist/EPS16-Plus-Emulator-macOS-Installer.pkg || true
+          pkgutil --payload-files dist/EPS16-Plus-Emulator-macOS-Installer.pkg | head -50 || true
+          mkdir -p pkgx && cd pkgx && xar -xf ../dist/EPS16-Plus-Emulator-macOS-Installer.pkg && ls -R | head -40 && cat Distribution | head -60
+          cd ..
+          echo "== the installer installs (all parts), then the uninstaller's script removes it"
+          sudo installer -pkg dist/EPS16-Plus-Emulator-macOS-Installer.pkg -target /
+          ls -la "/Applications/EPS-16 Plus Emulator" /Library/Audio/Plug-Ins/VST3 /Library/Audio/Plug-Ins/Components
+          test -d "/Applications/EPS-16 Plus Emulator/Uninstall EPS-16 Plus Emulator.app"
+          stat -f "%Lp %N" "/Applications/EPS-16 Plus Emulator/roms" "/Applications/EPS-16 Plus Emulator/scsi" "/Applications/EPS-16 Plus Emulator/flashbank" | grep -c "^777" | grep -q 3
+          pkgutil --pkgs | grep org.eps16emu
+          sudo /bin/sh "/Applications/EPS-16 Plus Emulator/Uninstall EPS-16 Plus Emulator.app/Contents/Resources/uninstall.sh" 0 "$HOME"
+          test ! -e "/Applications/EPS-16 Plus Emulator" && test ! -e /Library/Audio/Plug-Ins/VST3/EPS16.vst3 && test ! -e /Library/Audio/Plug-Ins/Components/EPS16.component
+          if pkgutil --pkgs | grep -q org.eps16emu; then echo "receipts left"; exit 1; fi
+          echo "uninstalled"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: EPS16-macOS
-          path: dist/EPS16-Plus-Emulator-macOS.zip
+          name: EPS16-macOS-Portable
+          path: dist/EPS16-Plus-Emulator-macOS-Portable.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EPS16-macOS-Installer
+          path: dist/EPS16-Plus-Emulator-macOS-Installer.pkg

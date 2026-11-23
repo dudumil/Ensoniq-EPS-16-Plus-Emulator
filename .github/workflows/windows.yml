@@ -1,0 +1,84 @@
+# Builds the Windows program, its command-line version and the VST3 plug-in (x86_64, cross-compiled with
+# llvm-mingw on Linux), packages them as a portable zip and as an installer (NSIS), then installs and
+# uninstalls that installer on a Windows runner. Both packages go under "Artifacts" on the run's page.
+name: Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+env:
+  LLVM_MINGW: llvm-mingw-20241217-ucrt-ubuntu-20.04-x86_64
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          curl -sSL -o llvm-mingw.tar.xz "https://github.com/mstorsjo/llvm-mingw/releases/download/20241217/$LLVM_MINGW.tar.xz"
+          tar xf llvm-mingw.tar.xz -C "$RUNNER_TEMP"
+          sudo apt-get update -q && sudo apt-get install -y -q nsis
+      - name: Build
+        run: |
+          set -e
+          L="$RUNNER_TEMP/$LLVM_MINGW"
+          cat > "$RUNNER_TEMP/mingw.cmake" <<T
+          set(CMAKE_SYSTEM_NAME Windows)
+          set(CMAKE_SYSTEM_PROCESSOR x86_64)
+          set(CMAKE_C_COMPILER $L/bin/x86_64-w64-mingw32-clang)
+          set(CMAKE_CXX_COMPILER $L/bin/x86_64-w64-mingw32-clang++)
+          set(CMAKE_RC_COMPILER $L/bin/x86_64-w64-mingw32-windres)
+          set(CMAKE_FIND_ROOT_PATH $L/x86_64-w64-mingw32)
+          set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+          set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+          set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+          set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+          T
+          cmake -S . -B build-win -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/mingw.cmake" -DCMAKE_BUILD_TYPE=Release \
+                -DEPS16_BUNDLED_SDL=ON -DCMAKE_EXE_LINKER_FLAGS=-static
+          cmake --build build-win -j4 --target eps16 eps16-cli
+          sh build-vst-win-mingw.sh "$L"
+      - name: Package
+        run: installer/windows/package.sh build-win build-vst-win/build/VST3/Release/EPS16.vst3 "$RUNNER_TEMP/$LLVM_MINGW" dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EPS16-Windows-Portable
+          path: dist/EPS16-Plus-Emulator-Windows-Portable.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EPS16-Windows-Setup
+          path: dist/EPS16-Plus-Emulator-Windows-Setup.exe
+  test:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: EPS16-Windows-Setup
+      - name: Install, check, uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dir = "$env:ProgramFiles\EPS-16 Plus Emulator"
+          $vst = "$env:CommonProgramFiles\VST3\EPS16.vst3"
+          Start-Process -Wait -FilePath .\EPS16-Plus-Emulator-Windows-Setup.exe -ArgumentList "/S"
+          Get-ChildItem -Recurse $dir | Select-Object FullName
+          foreach ($f in "eps16.exe", "eps16-cli.exe", "README.txt", "Uninstall.exe", "roms\README.txt", "scsi\README.txt", "licenses\GPL-3.0.txt") {
+            if (-not (Test-Path "$dir\$f")) { throw "missing $f" }
+          }
+          if (-not (Test-Path "$vst\Contents\x86_64-win\EPS16.vst3")) { throw "VST3 missing" }
+          if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\EPS-16 Plus Emulator\EPS-16 Plus Emulator.lnk")) { throw "Start menu shortcut missing" }
+          icacls "$dir\roms"
+          if (-not ((icacls "$dir\roms") -match "BUILTIN\\Users:\(OI\)\(CI\)\(M\)")) { throw "roms not writable by Users" }
+          Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\EPS16Emulator" | Format-List
+          & "$dir\eps16-cli.exe" --help | Select-Object -First 3
+          New-Item -ItemType File "$dir\roms\user-file.bin" | Out-Null
+          # uninstall keeping the user's files (silent = keep)
+          Start-Process -Wait -FilePath "$dir\Uninstall.exe" -ArgumentList "/S", "_?=$dir"
+          Remove-Item "$dir\Uninstall.exe" -ErrorAction SilentlyContinue
+          if (Test-Path "$dir\eps16.exe") { throw "eps16.exe left" }
+          if (Test-Path $vst) { throw "VST3 left" }
+          if (-not (Test-Path "$dir\roms\user-file.bin")) { throw "the user's file was deleted" }
+          if (Test-Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\EPS16Emulator") { throw "uninstall entry left" }
+          Get-ChildItem -Recurse $dir | Select-Object FullName
+          "installed and uninstalled"

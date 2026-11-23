@@ -28,27 +28,38 @@ for both.
 
 ## Download
 
-Get the latest release from the [Releases](../../releases) page.
+Get the latest release from the [Releases](../../releases) page. Each system has an **installer**
+(with an uninstaller) and a **portable** package (a folder to unzip anywhere, nothing installed).
 
-**Windows** (64-bit): **EPS16-Plus-Emulator-Windows.zip**
+| | Installer | Portable |
+|---|---|---|
+| **Windows** (64-bit) | `EPS16-Plus-Emulator-Windows-Setup.exe` | `EPS16-Plus-Emulator-Windows-Portable.zip` |
+| **macOS** (Apple Silicon and Intel, 11 or later) | `EPS16-Plus-Emulator-macOS-Installer.pkg` | `EPS16-Plus-Emulator-macOS-Portable.zip` |
+
+**Windows installer:** the program goes in `C:\Program Files\EPS-16 Plus Emulator` (with its `roms` and
+`scsi` folders, which the installer makes writable for you), the VST3 plug-in in
+`C:\Program Files\Common Files\VST3` (optional), plus Start menu shortcuts (one opens the `roms` folder).
+Remove it with Settings › Apps or the Start menu's *Uninstall EPS-16 Plus Emulator*: it asks whether to
+keep your ROMs, disk images and settings.
+
+**macOS installer:** the app goes in Applications › **EPS-16 Plus Emulator** (with its `roms` and `scsi`
+folders and an uninstaller), the VST3 plug-in in `/Library/Audio/Plug-Ins/VST3` and the **Audio Unit**
+(Logic Pro, GarageBand) in `/Library/Audio/Plug-Ins/Components`; *Customize* lets you leave parts out. The
+installer is not signed by Apple: if macOS refuses to open it, right-click it › **Open** (or System
+Settings › Privacy & Security › **Open Anyway**). To remove everything, open *Uninstall EPS-16 Plus
+Emulator* in the same folder (it can keep your ROMs, disk images and settings).
+
+**Portable packages:**
 
 | File | What it is |
 |---|---|
-| `eps16.exe` | the emulator |
-| `eps16-cli.exe` | command-line version (tests, rendering to WAV) |
+| `eps16.exe` / `EPS-16-Plus.app` | the emulator |
+| `eps16-cli(.exe)` | command-line version (tests, rendering to WAV) |
 | `VST3/EPS16.vst3` | the VST3 instrument plug-in |
+| `AU/EPS16.component` (macOS) | the Audio Unit (Logic Pro, GarageBand) |
 | `roms/`, `scsi/` | where your ROMs/OS disk and SCSI disk images go |
 
-**macOS** (universal: Apple Silicon and Intel, macOS 11 or later): **EPS16-Plus-Emulator-macOS.zip**
-
-| File | What it is |
-|---|---|
-| `EPS-16-Plus.app` | the emulator |
-| `eps16-cli` | command-line version |
-| `VST3/EPS16.vst3` | the VST3 instrument plug-in |
-| `roms/`, `scsi/` | where your ROMs/OS disk and SCSI disk images go |
-
-### macOS: what you need to know
+### macOS portable package: what you need to know
 
 1. **Keep the folder together.** Unzip and keep `EPS-16-Plus.app` with the `roms` and `scsi` folders next to
    it (the folder can go anywhere, e.g. in Applications or Documents): the app looks for them there.
@@ -62,8 +73,9 @@ Get the latest release from the [Releases](../../releases) page.
    (or later in System Settings › Privacy & Security › Microphone).
 5. **Menus:** File and View are in the macOS menu bar (⌘O open disk, ⌘E eject, ⌘S save disk changes,
    ⌘R reset, ⌘K keyboard, ⌘, options). The Ctrl shortcuts listed below work too.
-6. **Plug-in:** copy `VST3/EPS16.vst3` to `~/Library/Audio/Plug-Ins/VST3/` (Finder: Go › Go to Folder…)
-   and open the app once first. More details: `README.txt` in the package.
+6. **Plug-ins:** copy `VST3/EPS16.vst3` to `~/Library/Audio/Plug-Ins/VST3/` and, for Logic Pro,
+   `AU/EPS16.component` to `~/Library/Audio/Plug-Ins/Components/` (Finder: Go › Go to Folder…), and open
+   the app once first. More details: `README.txt` in the package.
 
 ## You need your own ROM and OS disk
 
@@ -167,13 +179,19 @@ capacitor; the OEX-6 has the same circuit), then are resampled to the computer's
 Options › Hardware › **D/A converters**: *TDA1541A (as the EPS-16 Plus)* (default) or *Ideal (perfect
 converter)*, which only resamples.
 
-## VST3 plug-in
+## VST3 plug-in and Audio Unit
 
-1. Copy the whole `VST3\EPS16.vst3` folder to `C:\Program Files\Common Files\VST3` (Windows) or to
-   `~/Library/Audio/Plug-Ins/VST3/` (macOS).
+1. The installers put the plug-ins in place. From a portable package, copy the whole `VST3\EPS16.vst3`
+   folder to `C:\Program Files\Common Files\VST3` (Windows) or to `~/Library/Audio/Plug-Ins/VST3/`
+   (macOS), and on macOS `AU/EPS16.component` to `~/Library/Audio/Plug-Ins/Components/` (Logic Pro,
+   GarageBand and other Audio Unit hosts).
 2. Run the app (`eps16.exe` / `EPS-16-Plus.app`) once: the plug-in then uses the same ROMs, OS disk, SCSI folder and settings as
    the app (including the MIDI channel: host notes go to channel 9 by default).
-3. Rescan plug-ins in your host and load **EPS-16 Plus Emulator** as an instrument.
+3. Rescan plug-ins in your host and load **EPS-16 Plus Emulator** as an instrument (in Logic Pro:
+   Instrument › AU Instruments › EPS16emu › EPS-16 Plus Emulator; Logic lists a *Multi-Output* version
+   too when it can use the extra outputs).
+- The Audio Unit is the VST3 inside Steinberg's AU wrapper (`Contents/Resources/plugin.vst3`): it works
+  the same way.
 
 - Outputs: Main plus AUX 1, BUS 2 and BUS 3 (enable them in the host to get them separately); a
   stereo input for sampling; MIDI In and MIDI Out.
@@ -193,6 +211,10 @@ cmake -S . -B build && cmake --build build -j          # app and command-line ve
 cmake -S plugin -B build-vst && cmake --build build-vst # VST3 plug-in (downloads the VST3 SDK)
 ```
 
+On macOS, `./build-mac.sh` builds the app, the VST3 and the Audio Unit and makes both packages (the
+installer with `installer/mac/make-pkg.sh`). The Windows packages are made by `installer/windows/package.sh`
+(NSIS for the installer); `.github/workflows/windows.yml` shows the whole cross-compiled build.
+
 macOS (universal: Apple Silicon and Intel): `./build-mac.sh` builds `EPS-16-Plus.app` and the VST3 plug-in into `dist/` (see
 `README-MAC.txt`); the `macOS` GitHub Actions workflow does the same on a Mac runner.
 
@@ -205,7 +227,8 @@ Technical notes (emulated hardware, memory map, code layout), in Portuguese:
 - This program is free software under the **GNU GPL v3** (`LICENSE`).
 - **Musashi** 68000 core by Karl Stenerud; **ES5505/ES5510** algorithms derived from MAME
   (BSD-3-Clause); **RtMidi/RtAudio** by Gary P. Scavone; **Steinberg ASIO SDK** (GPLv3);
-  **SDL2** (zlib); **VST3 SDK** (MIT) and **VSTGUI** (BSD-3-Clause) by Steinberg; panel and
+  **SDL2** (zlib); **VST3 SDK** (MIT) and **VSTGUI** (BSD-3-Clause) by Steinberg; the macOS Audio Unit
+  is built with Apple's **AudioUnitSDK** (Apache 2.0); panel and
   options page lettering rendered from **GNU FreeFont** FreeSans (GPLv3 with the font exception);
   the 8x8 bitmap font by Daniel Hepper (public domain). The licence texts are in `LICENSES/` (and
   next to Musashi, RtMidi and RtAudio in their folders).

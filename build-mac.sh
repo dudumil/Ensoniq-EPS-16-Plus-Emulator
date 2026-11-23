@@ -1,12 +1,15 @@
 #!/bin/bash
-# Builds the EPS-16 Plus emulator for macOS (universal: Apple Silicon and Intel): the "EPS-16-Plus.app" app and the "EPS16.vst3" plug-in.
+# Builds the EPS-16 Plus emulator for macOS (universal: Apple Silicon and Intel): the "EPS-16-Plus.app" app, the
+# "EPS16.vst3" plug-in and the "EPS16.component" Audio Unit (Logic Pro), and packages them twice:
+#   dist/EPS16-Plus-Emulator-macOS-Portable.zip    a folder to unzip anywhere
+#   dist/EPS16-Plus-Emulator-macOS-Installer.pkg   an installer (with an uninstaller)
 #
 # Requires:
 #   - Apple Command Line Tools (free):          xcode-select --install
 #   - CMake 3.25 or newer:                      brew install cmake   (or the .dmg from cmake.org)
 #   - an internet connection (the script downloads the VST3 SDK and SDL2 the first time)
 #
-# Usage: ./build-mac.sh           builds everything and installs the plug-in in ~/Library/Audio/Plug-Ins/VST3
+# Usage: ./build-mac.sh           builds everything and installs the plug-ins in ~/Library/Audio/Plug-Ins
 #        ./build-mac.sh --no-install
 set -e
 cd "$(dirname "$0")"
@@ -35,33 +38,39 @@ fi
 
 JOBS=$(sysctl -n hw.ncpu)
 
-echo "=== 1/2  app EPS-16-Plus.app ==="
+echo "=== 1/3  app EPS-16-Plus.app ==="
 cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
 cmake --build build-mac -j"$JOBS" --target eps16 eps16-cli
 
-echo "=== 2/2  plug-in EPS16.vst3 ==="
+echo "=== 2/3  plug-ins EPS16.vst3 and EPS16.component ==="
 cmake -S plugin -B build-vst -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-cmake --build build-vst -j"$JOBS" --target EPS16
+cmake --build build-vst -j"$JOBS" --target EPS16 EPS16_AU
 
 mkdir -p dist
-rm -rf dist/EPS-16-Plus.app dist/EPS16.vst3 dist/eps16-cli
+rm -rf dist/EPS-16-Plus.app dist/EPS16.vst3 dist/EPS16.component dist/eps16-cli
 cp -R build-mac/EPS-16-Plus.app dist/
 cp build-mac/eps16-cli dist/
-VST=$(find build-vst -name "EPS16.vst3" -type d -maxdepth 4 | head -1)
+VST=$(find build-vst -name "EPS16.vst3" -type d -maxdepth 4 | grep -v "/Resources/" | head -1)
 cp -R "$VST" dist/
+cp -R build-vst/AU/EPS16.component dist/
 
-# "ad hoc" signature: required on Apple Silicon to run locally built code
+# "ad hoc" signature: required on Apple Silicon to run locally built code (the VST3 inside the
+# component is signed first)
 codesign --force --deep -s - dist/EPS-16-Plus.app
 codesign --force --deep -s - dist/EPS16.vst3
+codesign --force --deep -s - dist/EPS16.component/Contents/Resources/plugin.vst3
+codesign --force -s - dist/EPS16.component
 codesign --force -s - dist/eps16-cli
 
-# Package as for Windows: the app, VST3/EPS16.vst3, empty roms/ and scsi/ folders (with their READMEs),
-# the READMEs and the licenses. The ROMs, OS disks and disk images are never put in it.
+# Portable package, as for Windows: the app, VST3/EPS16.vst3, AU/EPS16.component, empty roms/ and scsi/
+# folders (with their READMEs), the READMEs and the licenses. The ROMs, OS disks and disk images are
+# never put in it.
 PKG=dist/EPS16-macOS
-rm -rf "$PKG" "dist/EPS16-Plus-Emulator-macOS.zip"
-mkdir -p "$PKG/VST3" "$PKG/licenses" "$PKG/roms" "$PKG/scsi"
+rm -rf "$PKG" dist/EPS16-Plus-Emulator-macOS*.zip dist/EPS16-Plus-Emulator-macOS*.pkg
+mkdir -p "$PKG/VST3" "$PKG/AU" "$PKG/licenses" "$PKG/roms" "$PKG/scsi"
 cp -R dist/EPS-16-Plus.app "$PKG/"
 cp -R dist/EPS16.vst3 "$PKG/VST3/"
+cp -R dist/EPS16.component "$PKG/AU/"
 cp dist/eps16-cli "$PKG/"
 cp roms/README.txt "$PKG/roms/"
 cp scsi/README.txt "$PKG/scsi/"
@@ -71,14 +80,21 @@ cp LICENSES/*.txt musashi/LICENSE-Musashi.txt third_party/RtMidi-LICENSE.txt thi
 [ -f build-mac/_deps/sdl2-src/LICENSE.txt ] && cp build-mac/_deps/sdl2-src/LICENSE.txt "$PKG/licenses/SDL2-LICENSE.txt"
 VSTSDK_LIC=$(find build-vst/_deps -maxdepth 2 -path "*vst3sdk-src*" -name LICENSE.txt 2>/dev/null | head -1)
 [ -n "$VSTSDK_LIC" ] && cp "$VSTSDK_LIC" "$PKG/licenses/VST3-SDK-LICENSE.txt"
-ditto -c -k --keepParent "$PKG" "dist/EPS16-Plus-Emulator-macOS.zip"
-echo "Package: dist/EPS16-Plus-Emulator-macOS.zip"
+ditto -c -k --keepParent "$PKG" "dist/EPS16-Plus-Emulator-macOS-Portable.zip"
+echo "Portable package: dist/EPS16-Plus-Emulator-macOS-Portable.zip"
+
+echo "=== 3/3  installer ==="
+installer/mac/make-pkg.sh "$PKG" "dist/EPS16-Plus-Emulator-macOS-Installer.pkg"
 
 if [ $INSTALL = 1 ]; then
     mkdir -p ~/Library/Audio/Plug-Ins/VST3
     rm -rf ~/Library/Audio/Plug-Ins/VST3/EPS16.vst3
     cp -R dist/EPS16.vst3 ~/Library/Audio/Plug-Ins/VST3/
-    echo "Plug-in installed in ~/Library/Audio/Plug-Ins/VST3/EPS16.vst3"
+    mkdir -p ~/Library/Audio/Plug-Ins/Components
+    rm -rf ~/Library/Audio/Plug-Ins/Components/EPS16.component
+    cp -R dist/EPS16.component ~/Library/Audio/Plug-Ins/Components/
+    killall -9 AudioComponentRegistrar >/dev/null 2>&1 || true
+    echo "Plug-ins installed in ~/Library/Audio/Plug-Ins/VST3/EPS16.vst3 and ~/Library/Audio/Plug-Ins/Components/EPS16.component"
 fi
 echo
 echo "Done. The app is in dist/EPS-16-Plus.app (you can drag it to Applications)."

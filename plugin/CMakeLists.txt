@@ -135,6 +135,63 @@ if(SMTG_MAC)
     COMPANY_NAME "EPS16emu")
 endif()
 
+# ---------------------------------------------------------------- Audio Unit (macOS, for Logic Pro)
+# The VST3 SDK's AU v2 wrapper around the VST3 (which goes inside the component, as
+# Contents/Resources/plugin.vst3), built with Apple's AudioUnitSDK. The SDK's own helper needs the
+# Xcode generator; this builds the same sources with any generator.
+option(EPS16_AU "Build the Audio Unit (macOS)" ON)
+if(APPLE AND EPS16_AU)
+  set(AUDIOUNIT_SDK_DIR "" CACHE PATH "Local copy of Apple's AudioUnitSDK (empty = download)")
+  if(AUDIOUNIT_SDK_DIR STREQUAL "")
+    FetchContent_Declare(audiounitsdk
+      GIT_REPOSITORY https://github.com/apple/AudioUnitSDK.git
+      GIT_TAG AudioUnitSDK-1.1.0
+      GIT_SHALLOW TRUE)
+    FetchContent_GetProperties(audiounitsdk)
+    if(NOT audiounitsdk_POPULATED)
+      FetchContent_Populate(audiounitsdk)
+    endif()
+    set(AUDIOUNIT_SDK_DIR ${audiounitsdk_SOURCE_DIR})
+  endif()
+  file(GLOB ausdk_sources ${AUDIOUNIT_SDK_DIR}/src/AudioUnitSDK/*.cpp)
+  add_library(ausdk STATIC ${ausdk_sources})
+  target_include_directories(ausdk PUBLIC ${AUDIOUNIT_SDK_DIR}/include)
+  target_compile_features(ausdk PUBLIC cxx_std_17)
+
+  set(AUW ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/auwrapper)
+  set(au_target ${target}_AU)
+  add_library(${au_target} MODULE ${AUW}/auwrapper.mm ${AUW}/aucocoaview.mm ${AUW}/NSDataIBStream.mm)
+  target_compile_definitions(${au_target} PRIVATE SMTG_AUWRAPPER_USES_AUSDK CA_USE_AUDIO_PLUGIN_ONLY=0
+    SMTG_AUCocoaUIBase_CLASS_NAME=EPS16emu_AUCocoaUIBase_1)
+  target_compile_options(${au_target} PRIVATE -include ${AUW}/auwrapper_prefix.pch)
+  target_include_directories(${au_target} PRIVATE ${vst3sdk_SOURCE_DIR})
+  target_link_libraries(${au_target} PRIVATE sdk_hosting ausdk
+    "-framework AudioUnit" "-framework CoreMIDI" "-framework AudioToolbox" "-framework CoreFoundation"
+    "-framework Carbon" "-framework Cocoa" "-framework CoreAudio")
+  set(AU_EXECUTABLE ${target})
+  set(AU_BUNDLE_ID "org.eps16emu.audiounit")
+  set(AU_NAME "EPS-16 Plus Emulator")
+  set(AU_COMPANY "EPS16emu")
+  set(AU_MANUFACTURER "E16e")
+  set(AU_SUBTYPE "Eps6")
+  file(STRINGS ${EMU}/VERSION AU_VERSION LIMIT_COUNT 1)
+  string(REPLACE "." ";" _v ${AU_VERSION})
+  list(GET _v 0 _maj) list(GET _v 1 _min) list(GET _v 2 _pat)
+  math(EXPR AU_VERSION_INT "${_maj} * 65536 + ${_min} * 256 + ${_pat}")
+  configure_file(au/Info.plist.in ${CMAKE_CURRENT_BINARY_DIR}/au-Info.plist @ONLY)
+  set_target_properties(${au_target} PROPERTIES
+    BUNDLE TRUE BUNDLE_EXTENSION component OUTPUT_NAME ${target}
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/au-Info.plist
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/AU)
+  add_dependencies(${au_target} ${target})
+  # the VST3 goes inside the component
+  add_custom_command(TARGET ${au_target} POST_BUILD
+    COMMAND /bin/rm -rf "$<TARGET_BUNDLE_DIR:${au_target}>/Contents/Resources/plugin.vst3"
+    COMMAND /bin/mkdir -p "$<TARGET_BUNDLE_DIR:${au_target}>/Contents/Resources"
+    COMMAND /bin/cp -R "$<TARGET_BUNDLE_DIR:${target}>" "$<TARGET_BUNDLE_DIR:${au_target}>/Contents/Resources/plugin.vst3"
+    VERBATIM)
+endif()
+
 # ---------------------------------------------------------------- offline test host (optional)
 option(EPS16_VST_TESTHOST "Build the minimal offline test host" OFF)
 if(EPS16_VST_TESTHOST)
