@@ -82,3 +82,4 @@ jobs:
           if (Test-Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\EPS16Emulator") { throw "uninstall entry left" }
           Get-ChildItem -Recurse $dir | Select-Object FullName
           "installed and uninstalled"
+          exit 0   # (the command-line version exits with 1 without ROMs)
