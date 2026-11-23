@@ -46,7 +46,9 @@ public:
     // timing). The front ends then run the machine as fast as the computer allows, without its sound, so
     // that files load and save sooner.
     bool disk_busy() const {
-        return total_cycles - disk_clock < (uint64_t)cpu_clock && !seq_running();
+        // (not while a panel button is held: the OS times its auto-repeat - scrolling through the files
+        // with an arrow held - with the machine's clock, which would run too fast)
+        return total_cycles - disk_clock < (uint64_t)cpu_clock && !seq_running() && !panel.any_held();
     }
     bool seq_running() const {               // PLAY annunciator, or REC / ODUB without STOP
         return panel.ind3[12] != 0 || ((panel.ind3[3] || panel.ind3[14]) && !panel.ind3[11]);

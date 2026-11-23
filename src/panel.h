@@ -41,6 +41,8 @@ public:
 
     // user interface
     void button(int code, bool down);
+    uint64_t held = 0;                  // panel buttons held down (bit = button code), see any_held()
+    bool any_held() const { return held != 0; }
     void key(int k, int velocity, bool down);
     void pressure(int k, int value);
     std::string text() const { return std::string(disp, 22); }

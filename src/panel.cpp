@@ -110,6 +110,7 @@ void Panel::rx_from_cpu(uint8_t b) {
 
 // Panel -> CPU messages (two bytes each), see header
 void Panel::button(int code, bool down) {
+    if (down) held |= 1ull << (code & 63); else held &= ~(1ull << (code & 63));
     if (!send) return;
     send((down ? 0x80 : 0x00) | (code & 0x3f));   // like keys: bit 7 set = pressed
     send(0x00);
