@@ -84,7 +84,8 @@ component() {   # name root install-location [scripts]
     pkgbuild --analyze --root "$root" "$W/$name.plist" >/dev/null
     local i=0
     while /usr/libexec/PlistBuddy -c "Print :$i" "$W/$name.plist" >/dev/null 2>&1; do
-        /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$W/$name.plist"
+        /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$W/$name.plist" 2>/dev/null ||
+            /usr/libexec/PlistBuddy -c "Add :$i:BundleIsRelocatable bool false" "$W/$name.plist"
         i=$((i + 1))
     done
     pkgbuild --root "$root" --component-plist "$W/$name.plist" --identifier "$ID.$name" --version "$VERSION" \
