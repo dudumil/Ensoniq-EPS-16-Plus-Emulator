@@ -62,8 +62,8 @@ if(EPS16_GUI)
       MACOSX_BUNDLE TRUE
       OUTPUT_NAME "EPS-16-Plus"
       MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/src/mac/Info.plist.in
-      MACOSX_BUNDLE_SHORT_VERSION_STRING "0.9"
-      MACOSX_BUNDLE_BUNDLE_VERSION "0.9")
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
+      MACOSX_BUNDLE_BUNDLE_VERSION "1.0")
     target_sources(eps16 PRIVATE src/mac/eps16.icns src/mac/menu_mac.mm)
     target_link_libraries(eps16 "-framework Cocoa")
     set_source_files_properties(src/mac/eps16.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
