@@ -46,6 +46,7 @@ public:
     std::vector<uint8_t> mem = std::vector<uint8_t>(SIZE, 0xff);
     bool dirty = false;                             // changed since it was loaded / saved
     uint32_t changes = 0;                           // counts the writes that changed it
+    uint32_t activity = 0;                          // counts every write (fast disk access, see Eps16::disk_busy)
     bool load(const std::string &path);             // a missing file = a new (erased) board
     bool save(const std::string &path);
     static bool write_file(const std::string &path, const std::vector<uint8_t> &data);

@@ -124,6 +124,16 @@ choose another one in Options › SCSI drives.
 **Create HDn.img**. The image is created on the first free SCSI ID, already formatted as the EPS's
 FORMAT SCSI DRIVE does it, so it is ready to use. Reset the EPS so that the OS sees new drives.
 
+## Fast loading and saving
+
+While a file is loaded or saved (floppy, SCSI or writing to the FB-2) the emulated EPS-16 Plus runs
+as fast as the computer allows instead of at its real speed, so loads, saves, formatting and booting
+take a fraction of the time (booting: ~1.5 s instead of ~7 s). The sound is muted meanwhile (it fades
+out and back in). It stays at real speed while the sequencer plays or records, so songs keep their
+timing. Options › Hardware › **Loading / saving**: *Fast* (default) or *Real speed*. The VST3 plug-in
+follows the app's choice; in a host it runs ahead with up to ~40% of each audio block's time, so the
+speed-up there is smaller.
+
 ## FB-2 Flash Bank
 
 The FB-2 was Ensoniq's flash memory board for the EPS-16 Plus: four Intel 28F020 chips (1 MB) on the

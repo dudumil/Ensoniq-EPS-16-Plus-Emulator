@@ -104,6 +104,15 @@ D/A CONVERTERS
    (16-bit steps, each sample held for a whole period, the output filter);
    "Ideal (perfect converter)" only resamples to the sound card's rate.
 
+FAST LOADING AND SAVING
+   While a file is loaded or saved (floppy, SCSI, or writing to the FB-2) the
+   EPS runs as fast as the computer allows, with the sound muted meanwhile:
+   loads, saves, formatting and booting take a fraction of the time. While the
+   sequencer plays or records it stays at real speed (songs keep their timing).
+   View > Options > HARDWARE > Loading / saving: "Fast" (default) or "Real
+   speed (as the EPS-16 Plus)". The VST3 follows the app's choice (in a host
+   the speed-up is smaller: it uses up to ~40% of each audio block's time).
+
 FB-2 FLASH BANK
    Ensoniq's 1 MB flash board for the OS and instruments. View > Options >
    HARDWARE > FB-2 Flash Bank: installed (APPLY restarts the EPS with it). Its
@@ -183,9 +192,9 @@ COMMAND LINE OPTIONS
 KNOWN LIMITATIONS
    - The pedals (SUSTAIN FT SW / AUX FT SW, on the rack's back panel) have no
      shortcut yet.
-   - The floppy is fast: a 195 KB instrument loads in ~1.4 s (~7 s on the real
-     EPS). Booting takes ~3.5 s (~6 s with SCSI: the ROM waits for the SCSI
-     disks). Formatting a floppy takes ~15 s.
+   - Loading and saving are much faster than on the real EPS (see FAST LOADING
+     AND SAVING; even at "Real speed" the floppy transfers are faster unless
+     --real-disk-speed is given).
 
 VST3 PLUG-IN (VST3 folder)
    1. Copy the whole VST3\EPS16.vst3 folder to

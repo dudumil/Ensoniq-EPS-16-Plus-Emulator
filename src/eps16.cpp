@@ -142,7 +142,7 @@ void Eps16::reset() {
     m68k_init();
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
     m68k_pulse_reset();
-    total_cycles = 0;
+    total_cycles = 0; disk_clock = 0;
 }
 
 // The OS keeps a state block per slider (A2): state word, filtered value (+6) and a hysteresis
@@ -409,4 +409,6 @@ void Eps16::run(int64_t clocks) {
         if (fdc.step_count != last_steps) { last_steps = fdc.step_count; if (fdc.has_disk()) dskchg = true; }
         duart.set_ip(1, dskchg);            // /DSKCHG: low after a disk change until the head steps
     }
+    const uint32_t act = fdc.activity + scsi.activity.load(std::memory_order_relaxed) + flash.activity;
+    if (act != disk_act) { disk_act = act; disk_clock = total_cycles; }
 }

@@ -91,6 +91,8 @@ private:
     std::vector<std::string> scsi_list;            // images attached by the user, by SCSI ID
     std::string floppy;
     bool boot_scsi_ = false;
+    bool fast_disk_ = true;                        // fast disk access (the app's option)
+    bool turbo_prev_ = false;                      // the last block ran ahead (sound faded out)
     std::string os_disk;                           // the OS disk image found at start (even when booting from SCSI)
     std::string scsi_folder;                       // chosen folder, "" = default
     std::string app_dir;                           // the stand-alone program's folder (from the .cfg)

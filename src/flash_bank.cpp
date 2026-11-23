@@ -44,6 +44,7 @@ void FlashBank::command(Chip &k, uint8_t v, uint32_t ca) {
 }
 
 void FlashBank::write8(uint32_t o, uint8_t v) {
+    activity++;
     o &= SIZE - 1;
     const int c = chip_of(o);
     Chip &k = chip[c];

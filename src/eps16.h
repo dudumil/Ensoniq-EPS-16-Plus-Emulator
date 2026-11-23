@@ -41,6 +41,16 @@ public:
     void reset();
     void run(int64_t clocks);
     uint64_t cycles() const { return total_cycles; }
+    // Fast disk access: true while the floppy, a SCSI drive or the FB-2 has been written / read in the
+    // last second (of the machine's time) and the sequencer is stopped (PLAY / REC off: songs keep their
+    // timing). The front ends then run the machine as fast as the computer allows, without its sound, so
+    // that files load and save sooner.
+    bool disk_busy() const {
+        return total_cycles - disk_clock < (uint64_t)cpu_clock && !seq_running();
+    }
+    bool seq_running() const {               // PLAY annunciator, or REC / ODUB without STOP
+        return panel.ind3[12] != 0 || ((panel.ind3[3] || panel.ind3[14]) && !panel.ind3[11]);
+    }
 
     bool insert_disk(const std::string &path);
     void eject_disk();
@@ -110,6 +120,8 @@ public:
 
 private:
     uint64_t total_cycles = 0;
+    uint64_t disk_clock = 0;           // last time the floppy / SCSI / FB-2 was used (disk_busy)
+    uint32_t disk_act = 0;
     double otis_acc = 0, duart_acc = 0;
     bool boot_overlay = true;
     bool irq_duart = false, irq_dmac = false, irq_otis = false;

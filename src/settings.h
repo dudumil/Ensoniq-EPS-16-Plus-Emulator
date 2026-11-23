@@ -32,6 +32,9 @@ struct Settings {
     bool boot_scsi = false;
     // FB-2 Flash Bank fitted (its contents: flashbank/fb2.bin next to the program, see FlashBank::file_for)
     bool flash_bank = false;
+    // fast disk access: while a file is loaded or saved (floppy, SCSI or FB-2, sequencer stopped) the machine
+    // runs as fast as the computer allows, without sound (see Eps16::disk_busy)
+    bool fast_disk = true;
 
     std::string path;                  // file the settings were loaded from / are saved to
     bool load(const std::string &file);

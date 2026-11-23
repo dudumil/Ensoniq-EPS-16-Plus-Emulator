@@ -82,6 +82,7 @@ uint8_t Wd1772::read(int reg) {
     case 1: return track;
     case 2: return sector;
     default:
+        activity++;
         if (state == READ || state == RADDR) set_drq(false);
         return data;
     }
@@ -110,6 +111,7 @@ void Wd1772::start_sector() {
 }
 
 void Wd1772::write(int reg, uint8_t v) {
+    activity++;
     switch (reg & 3) {
     case 0: {
         if ((v & 0xf0) == 0xd0) {          // force interrupt
