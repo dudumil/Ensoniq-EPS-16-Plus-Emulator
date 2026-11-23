@@ -61,24 +61,34 @@ jobs:
           $ErrorActionPreference = "Stop"
           $dir = "$env:ProgramFiles\EPS-16 Plus Emulator"
           $vst = "$env:CommonProgramFiles\VST3\EPS16.vst3"
-          Start-Process -Wait -FilePath .\EPS16-Plus-Emulator-Windows-Setup.exe -ArgumentList "/S"
+          # without the ROMs and the OS disk the installer does not go on
+          $p = Start-Process -Wait -PassThru -FilePath .\EPS16-Plus-Emulator-Windows-Setup.exe -ArgumentList "/S"
+          "exit code without ROMs: $($p.ExitCode)"
+          if ($p.ExitCode -eq 0 -or (Test-Path "$dir\eps16.exe")) { throw "installed without the ROMs" }
+          # stand-in files of the right sizes (the real ROMs are never in the repository)
+          [IO.File]::WriteAllBytes("$PWD\lo.bin", (New-Object byte[] 65536))
+          [IO.File]::WriteAllBytes("$PWD\hi.bin", (New-Object byte[] 65536))
+          [IO.File]::WriteAllBytes("$PWD\My OS.img", (New-Object byte[] 819200))
+          $p = Start-Process -Wait -PassThru -FilePath .\EPS16-Plus-Emulator-Windows-Setup.exe -ArgumentList "/S", "/ROMLO=$PWD\lo.bin", "/ROMHI=$PWD\hi.bin", "/OS=`"$PWD\My OS.img`""
+          "exit code: $($p.ExitCode)"
           Get-ChildItem -Recurse $dir | Select-Object FullName
-          foreach ($f in "eps16.exe", "eps16-cli.exe", "README.txt", "Uninstall.exe", "roms\README.txt", "scsi\README.txt", "licenses\GPL-3.0.txt") {
+          foreach ($f in "eps16.exe", "eps16-cli.exe", "README.txt", "Uninstall.exe", "roms\README.txt", "scsi\README.txt", "licenses\GPL-3.0.txt", "roms\eps16plus-u27.bin", "roms\eps16plus-u28.bin", "roms\My OS.img") {
             if (-not (Test-Path "$dir\$f")) { throw "missing $f" }
           }
           if (-not (Test-Path "$vst\Contents\x86_64-win\EPS16.vst3")) { throw "VST3 missing" }
           if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\EPS-16 Plus Emulator\EPS-16 Plus Emulator.lnk")) { throw "Start menu shortcut missing" }
+          if (-not (Test-Path "$env:PUBLIC\Desktop\EPS-16 Plus Emulator.lnk")) { throw "desktop shortcut missing" }
           icacls "$dir\roms"
           if (-not ((icacls "$dir\roms") -match "BUILTIN\\Users:\(OI\)\(CI\)\(M\)")) { throw "roms not writable by Users" }
           Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\EPS16Emulator" | Format-List
           & "$dir\eps16-cli.exe" --help | Select-Object -First 3
-          New-Item -ItemType File "$dir\roms\user-file.bin" | Out-Null
           # uninstall keeping the user's files (silent = keep)
           Start-Process -Wait -FilePath "$dir\Uninstall.exe" -ArgumentList "/S", "_?=$dir"
           Remove-Item "$dir\Uninstall.exe" -ErrorAction SilentlyContinue
           if (Test-Path "$dir\eps16.exe") { throw "eps16.exe left" }
           if (Test-Path $vst) { throw "VST3 left" }
-          if (-not (Test-Path "$dir\roms\user-file.bin")) { throw "the user's file was deleted" }
+          if (-not (Test-Path "$dir\roms\eps16plus-u27.bin")) { throw "the user's ROM was deleted" }
+          if (Test-Path "$env:PUBLIC\Desktop\EPS-16 Plus Emulator.lnk") { throw "desktop shortcut left" }
           if (Test-Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\EPS16Emulator") { throw "uninstall entry left" }
           Get-ChildItem -Recurse $dir | Select-Object FullName
           "installed and uninstalled"

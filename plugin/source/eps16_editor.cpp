@@ -246,12 +246,13 @@ bool PLUGIN_API Editor::open(void *parent, const PlatformType &type) {
     // the host passes drops on to plug-ins)
     rack->on_drive = [this]() {
         CNewFileSelector *sel = frame ? CNewFileSelector::create(frame, CNewFileSelector::kSelectFile) : nullptr;
-        if (!sel) { plug->engine().message("Drop a disk image (.img, .ede, .eda) or an instrument (.efe/.efa) on the panel to put it in the drive"); return; }
+        if (!sel) { plug->engine().message("Drop a disk image (.img, .ede, .eda, .hfe) or an instrument (.efe/.efa) on the panel to put it in the drive"); return; }
         sel->setTitle("Put a disk image or instrument files in the drive");
         sel->setAllowMultiFileSelection(true);
         sel->addFileExtension(CFileExtension("Disk images and instruments", "img"));
         sel->addFileExtension(CFileExtension("Giebler disk image (EPS / EPS-16 Plus / ASR)", "ede"));
         sel->addFileExtension(CFileExtension("Giebler disk image (ASR-10 HD)", "eda"));
+        sel->addFileExtension(CFileExtension("HxC floppy image", "hfe"));
         sel->addFileExtension(CFileExtension("Ensoniq instrument file", "efe"));
         sel->addFileExtension(CFileExtension("Ensoniq instrument file (ASR)", "efa"));
         sel->addFileExtension(CNewFileSelector::getAllFilesExtension());

@@ -1,6 +1,7 @@
 #include "eps16_engine.h"
 #include "efe_disk.h"
 #include "search_dirs.h"
+#include "hfe_image.h"
 #include "settings.h"
 #include "m68k.h"
 #include <cstring>
@@ -16,6 +17,25 @@
 #endif
 
 namespace fs = std::filesystem;
+
+// The folder the installer put the program in (with its roms folder), "" if it was not installed:
+// Windows: the InstallLocation of its entry in the uninstall list; macOS: Applications/<product>.
+static std::string installed_dir() {
+#if defined(_WIN32)
+    wchar_t buf[1024]; DWORD sz = sizeof buf;
+    if (RegGetValueW(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EPS16Emulator", L"InstallLocation",
+                     RRF_RT_REG_SZ | RRF_SUBKEY_WOW6464KEY, nullptr, buf, &sz) != ERROR_SUCCESS) return std::string();
+    std::error_code ec;
+    fs::path p(buf);
+    return fs::is_directory(p, ec) ? p.u8string() : std::string();
+#elif defined(__APPLE__)
+    std::error_code ec;
+    fs::path p("/Applications/EPS-16 Plus Emulator");
+    return fs::is_directory(p / "roms", ec) ? p.u8string() : std::string();
+#else
+    return std::string();
+#endif
+}
 
 // ------------------------------------------------------------------ shared 68000 core
 static std::mutex g_mx;                 // guards every machine and the Musashi globals
@@ -64,6 +84,12 @@ bool Eps16Engine::boot(const std::string &resources, const std::string &user) {
     // The files are where the stand-alone program finds them: its "roms" folder (the program
     // records its folder in eps16.cfg as app_dir), the per-user folder, and last the bundle.
     Settings st; st.load((fs::u8path(user) / "eps16.cfg").u8string());
+    {   // installed with the installer: the files are in the folder it installed (its roms folder has the
+        // ROMs and the OS disk the installer asked for), whatever program folder was recorded before
+        const std::string inst = installed_dir();
+        std::error_code ec2;
+        if (!inst.empty() && fs::is_directory(fs::u8path(inst) / "roms", ec2)) st.app_dir = inst;
+    }
     std::vector<std::string> dirs;
     if (!st.app_dir.empty()) { for (auto &d : rom_subdirs(st.app_dir)) dirs.push_back(d); dirs.push_back(st.app_dir); }
     dirs.push_back((fs::u8path(user) / "roms").u8string()); dirs.push_back(user);
@@ -84,7 +110,7 @@ bool Eps16Engine::boot(const std::string &resources, const std::string &user) {
         for (auto &e : fs::directory_iterator(d, ec)) {
             std::string ext = e.path().extension().string();
             for (auto &c : ext) c = (char)tolower((unsigned char)c);
-            if (ext == ".img" && e.is_regular_file(ec) && fs::file_size(e.path(), ec) <= 2 * 1024 * 1024) imgs.push_back(e.path());
+            if (hfe::is_floppy_image_ext(ext) && e.is_regular_file(ec) && (fs::file_size(e.path(), ec) <= 2 * 1024 * 1024 || ext == ".hfe")) imgs.push_back(e.path());
         }
         std::sort(imgs.begin(), imgs.end());
         return imgs.empty() ? fs::path() : imgs[0];
@@ -267,7 +293,7 @@ void Eps16Engine::insert_disk(const std::string &path) {
     push(cmd_mx, cmds, [this, path](Eps16 &a) {
         std::error_code ec;
         auto size = fs::file_size(fs::u8path(path), ec);
-        if (!ec && size > 2 * 1024 * 1024) {      // a hard disk image: on the SCSI bus
+        if (!ec && size > 2 * 1024 * 1024 && !hfe::is_hfe_path(path)) {      // a hard disk image: on the SCSI bus
             bool before[8];
             for (int i = 0; i < 8; i++) before[i] = a.scsi.dev[i] != nullptr;
             std::string r = a.scsi.attach_file(path);

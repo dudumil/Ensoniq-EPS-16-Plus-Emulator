@@ -10,6 +10,7 @@
 #include "win/eps16_icon64.h"
 #include "audio_io.h"
 #include "search_dirs.h"
+#include "hfe_image.h"
 #include "settings.h"
 #include "wav_recorder.h"
 #include <SDL.h>
@@ -279,7 +280,7 @@ extern "C" __declspec(dllimport) unsigned long __stdcall GetConsoleProcessList(u
 extern "C" __declspec(dllimport) int __stdcall FreeConsole(void);
 #endif
 
-// first disk image in dir: os130.img if present, otherwise the first *.img (alphabetically)
+// first disk image in dir: os130.img if present, otherwise the first disk image (.img, .ede, .eda, .hfe; alphabetically)
 static std::string find_disk(const std::string &dir) {
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -289,7 +290,7 @@ static std::string find_disk(const std::string &dir) {
     for (auto &e : fs::directory_iterator(dir, ec)) {
         std::string ext = e.path().extension().string();
         for (auto &c : ext) c = (char)tolower((unsigned char)c);
-        if (ext == ".img" && e.is_regular_file(ec)) imgs.push_back(e.path().string());
+        if (hfe::is_floppy_image_ext(ext) && e.is_regular_file(ec)) imgs.push_back(e.path().string());
     }
     std::sort(imgs.begin(), imgs.end());
     return imgs.empty() ? "" : imgs[0];
@@ -354,7 +355,7 @@ int main(int argc, char **argv) {
         else if (a == "-h" || a == "--help") { usage(); return 0; }
         else if (a.size() > 4 && a[0] != '-') {      // bare image path: floppy, or SCSI if it is big
             std::error_code ec; auto sz = std::filesystem::file_size(a, ec);
-            if (!ec && sz > 2 * 1024 * 1024) scsi_files.push_back(a); else disk = a;
+            if (!ec && sz > 2 * 1024 * 1024 && !hfe::is_hfe_path(a)) scsi_files.push_back(a); else disk = a;
         }
     }
     // an instrument file (.efe) given at start: boot from the OS disk, then put it in the drive
@@ -1174,7 +1175,7 @@ int main(int argc, char **argv) {
     bool kb_down[KEYS] = {};
     int velocity = 100;
     std::string status = disk.empty() ? (boot_scsi ? (cfg.flash_bank ? "No floppy in the drive: booting from the Flash Bank or SCSI (drop a disk image on the window to insert one)" : "Booting from SCSI: no floppy in the drive (drop a disk image on the window to insert one)")
-                                                   : "No OS disk found in the roms folder: drop a disk image (.img, .ede, .eda) or an instrument (.efe) on the window")
+                                                   : "No OS disk found in the roms folder: drop a disk image (.img, .ede, .eda, .hfe) or an instrument (.efe) on the window")
                                       : "Disk: " + disk;
     uint32_t status_t = SDL_GetTicks();
 
@@ -1382,7 +1383,7 @@ int main(int argc, char **argv) {
                         if (a == RackUI::POWER) { power_held = true; power_down_t = SDL_GetTicks(); break; }
                         if (a == RackUI::EJECT) {
                             if (m.fdc.has_disk()) { save_disk(); m.eject_disk(); status = "Disk ejected"; }
-                            else status = "The drive is empty: drop a disk image (.img, .ede, .eda) or an instrument (.efe) on the window";
+                            else status = "The drive is empty: drop a disk image (.img, .ede, .eda, .hfe) or an instrument (.efe) on the window";
                             status_t = SDL_GetTicks(); break;
                         }
                         if (a == RackUI::DRIVE) {

@@ -34,18 +34,22 @@ Get the latest release from the [Releases](../../releases) page. Each system has
 | | Installer | Portable |
 |---|---|---|
 | **Windows** (64-bit) | `EPS16-Plus-Emulator-Windows-Setup.exe` | `EPS16-Plus-Emulator-Windows-Portable.zip` |
-| **macOS** (Apple Silicon and Intel, 11 or later) | `EPS16-Plus-Emulator-macOS-Installer.pkg` | `EPS16-Plus-Emulator-macOS-Portable.zip` |
+| **macOS** (Apple Silicon and Intel, 11 or later) | `EPS16-Plus-Emulator-macOS-Installer.dmg` | `EPS16-Plus-Emulator-macOS-Portable.zip` |
+
+Both installers ask for **your own ROMs and OS disk**: the low and high firmware (`.bin`) and the
+operating system disk image (`.img`, `.hfe`, `.ede` or `.eda`). They copy them into the program's `roms`
+folder, where the app and the plug-ins find them, and do not go on without them.
 
 **Windows installer:** the program goes in `C:\Program Files\EPS-16 Plus Emulator` (with its `roms` and
 `scsi` folders, which the installer makes writable for you), the VST3 plug-in in
-`C:\Program Files\Common Files\VST3` (optional), plus Start menu shortcuts (one opens the `roms` folder).
+`C:\Program Files\Common Files\VST3` (optional), Start menu shortcuts and a desktop shortcut.
 Remove it with Settings › Apps or the Start menu's *Uninstall EPS-16 Plus Emulator*: it asks whether to
 keep your ROMs, disk images and settings.
 
 **macOS installer:** the app goes in Applications › **EPS-16 Plus Emulator** (with its `roms` and `scsi`
 folders and an uninstaller), the VST3 plug-in in `/Library/Audio/Plug-Ins/VST3` and the **Audio Unit**
-(Logic Pro, GarageBand) in `/Library/Audio/Plug-Ins/Components`; *Customize* lets you leave parts out. The
-installer is not signed by Apple: if macOS refuses to open it, right-click it › **Open** (or System
+(Logic Pro, GarageBand) in `/Library/Audio/Plug-Ins/Components`; *Customize* lets you leave the plug-ins
+out. It comes in a disk image (`.dmg`): open it, then *Install {prod}*. The installer is not signed by Apple: if macOS refuses to open it, right-click it › **Open** (or System
 Settings › Privacy & Security › **Open Anyway**). To remove everything, open *Uninstall EPS-16 Plus
 Emulator* in the same folder (it can keep your ROMs, disk images and settings).
 
@@ -87,7 +91,7 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
 
 ## Using it
 
-- **Disks:** drag a floppy image (`.img`, or a Giebler `.ede` / `.eda` image) onto the window, or one or more instruments (`.efe`): they
+- **Disks:** drag a floppy image (`.img`, a Giebler `.ede` / `.eda` image or an HxC / Gotek `.hfe` image) onto the window, or one or more instruments (`.efe`): they
   are put on a temporary floppy in the drive, then use LOAD as usual. The drive's eject button ejects.
   File › Save Disk Changes (Ctrl+S) writes the floppy back to its image.
 - **Record a song to WAV:** File › Record Song to WAV… (Ctrl+W; ⇧⌘R on the Mac). Choose the folder; the
@@ -195,7 +199,7 @@ converter)*, which only resamples.
 
 - Outputs: Main plus AUX 1, BUS 2 and BUS 3 (enable them in the host to get them separately); a
   stereo input for sampling; MIDI In and MIDI Out.
-- The editor is just the panel: click the drive slot to choose a disk image (`.img`, `.ede`, `.eda`) or
+- The editor is just the panel: click the drive slot to choose a disk image (`.img`, `.ede`, `.eda`, `.hfe`) or
   instrument files, or drag them onto the panel (where the host passes drops on to plug-ins), use the drive's eject
   button and the Power button, as in the app.
 - The plug-in has no settings of its own: change them in the app and the plug-in follows.

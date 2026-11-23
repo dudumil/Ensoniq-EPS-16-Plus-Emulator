@@ -50,14 +50,31 @@ jobs:
           pkgutil --payload-files dist/EPS16-Plus-Emulator-macOS-Installer.pkg | head -50 || true
           mkdir -p pkgx && cd pkgx && xar -xf ../dist/EPS16-Plus-Emulator-macOS-Installer.pkg && ls -R | head -40 && cat Distribution | head -60
           cd ..
-          echo "== the installer installs (all parts), then the uninstaller's script removes it"
+          echo "== disk image"
+          hdiutil attach dist/EPS16-Plus-Emulator-macOS-Installer.dmg -mountpoint /tmp/dmg -nobrowse
+          ls -la@ /tmp/dmg; GetFileInfo "/tmp/dmg/Install EPS-16 Plus Emulator.pkg" || true
+          cmp "/tmp/dmg/Install EPS-16 Plus Emulator.pkg" dist/EPS16-Plus-Emulator-macOS-Installer.pkg
+          hdiutil detach /tmp/dmg
+          echo "== without the ROMs and the OS disk the installer stops"
+          if sudo installer -pkg dist/EPS16-Plus-Emulator-macOS-Installer.pkg -target /; then echo "installed without the ROMs"; exit 1; fi
+          test ! -e "/Applications/EPS-16 Plus Emulator/EPS-16-Plus.app"
+          echo "== with them (stand-in files of the right sizes) it installs; then the uninstaller's script removes it"
+          sudo mkdir -p "/Applications/EPS-16 Plus Emulator/roms"
+          sudo mkfile -n 65536 "/Applications/EPS-16 Plus Emulator/roms/eps16plus-u27.bin"
+          sudo mkfile -n 65536 "/Applications/EPS-16 Plus Emulator/roms/eps16plus-u28.bin"
+          sudo mkfile -n 819200 "/Applications/EPS-16 Plus Emulator/roms/My OS.img"
           sudo installer -pkg dist/EPS16-Plus-Emulator-macOS-Installer.pkg -target /
+          ls -la "/Applications/EPS-16 Plus Emulator/roms"
+          test -f "/Applications/EPS-16 Plus Emulator/roms/My OS.img"
           ls -la "/Applications/EPS-16 Plus Emulator" /Library/Audio/Plug-Ins/VST3 /Library/Audio/Plug-Ins/Components
           test -d "/Applications/EPS-16 Plus Emulator/Uninstall EPS-16 Plus Emulator.app"
           stat -f "%Lp %N" "/Applications/EPS-16 Plus Emulator/roms" "/Applications/EPS-16 Plus Emulator/scsi" "/Applications/EPS-16 Plus Emulator/flashbank" | grep -c "^777" | grep -q 3
           pkgutil --pkgs | grep org.eps16emu
-          sudo /bin/sh "/Applications/EPS-16 Plus Emulator/Uninstall EPS-16 Plus Emulator.app/Contents/Resources/uninstall.sh" 0 "$HOME"
-          test ! -e "/Applications/EPS-16 Plus Emulator" && test ! -e /Library/Audio/Plug-Ins/VST3/EPS16.vst3 && test ! -e /Library/Audio/Plug-Ins/Components/EPS16.component
+          sudo /bin/sh "/Applications/EPS-16 Plus Emulator/Uninstall EPS-16 Plus Emulator.app/Contents/Resources/uninstall.sh" 1 "$HOME"
+          test ! -e "/Applications/EPS-16 Plus Emulator/EPS-16-Plus.app" && test -f "/Applications/EPS-16 Plus Emulator/roms/My OS.img"
+          test ! -e /Library/Audio/Plug-Ins/VST3/EPS16.vst3 && test ! -e /Library/Audio/Plug-Ins/Components/EPS16.component
+          echo "(the user's files were kept)"; ls -R "/Applications/EPS-16 Plus Emulator"
+          sudo rm -rf "/Applications/EPS-16 Plus Emulator"
           if pkgutil --pkgs | grep -q org.eps16emu; then echo "receipts left"; exit 1; fi
           echo "uninstalled"
 
@@ -68,4 +85,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: EPS16-macOS-Installer
-          path: dist/EPS16-Plus-Emulator-macOS-Installer.pkg
+          path: dist/EPS16-Plus-Emulator-macOS-Installer.dmg

@@ -1,5 +1,6 @@
 #include "u8file.h"
 #include "scsi.h"
+#include "hfe_image.h"
 #include <cstring>
 #include <cctype>
 #include <algorithm>
@@ -402,7 +403,7 @@ std::string Wd33c93::attach_file(const std::string &path, int host_id) {
         // goes on the bus as a hard disk, on the first free ID
         std::error_code ec;
         auto sz = fs::file_size(fs::u8path(path), ec);
-        if (ec || sz <= 2 * 1024 * 1024) return "";
+        if (ec || sz <= 2 * 1024 * 1024 || hfe::is_hfe_path(path)) return "";   // (an .HFE floppy can be bigger)
         id = -1;
         for (int i = 0; i < 8 && id < 0; i++) if (i != host_id && !dev[i]) id = i;
         if (id < 0) return "SCSI: no free IDs";

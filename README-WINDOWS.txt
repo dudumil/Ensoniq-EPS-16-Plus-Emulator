@@ -4,10 +4,13 @@ ENSONIQ EPS-16 PLUS (RACK) EMULATOR FOR WINDOWS
 Requires Windows 10 or 11 (64-bit). No DLLs needed.
 
 INSTALLER OR PORTABLE
-   EPS16-Plus-Emulator-Windows-Setup.exe installs the program in
+   EPS16-Plus-Emulator-Windows-Setup.exe asks for your ROMs (low and high firmware,
+   .bin) and OS disk image (.img, .hfe, .ede or .eda), copies them into the
+   program's roms folder (where the program and the VST3 plug-in find them)
+   and does not go on without them. It installs the program in
    C:\Program Files\EPS-16 Plus Emulator (its roms and scsi folders are made
    writable for you), the VST3 plug-in in C:\Program Files\Common Files\VST3
-   (optional) and Start menu shortcuts (one opens the roms folder). Uninstall
+   (optional), Start menu shortcuts and a desktop shortcut. Uninstall
    with Settings > Apps or the Start menu: it asks whether to keep your ROMs,
    disk images and settings.
    EPS16-Plus-Emulator-Windows-Portable.zip is the same program in a folder:
@@ -146,7 +149,8 @@ MIRAGE DISKS
    sound and for the Mirage disk: drop the Mirage image and press Enter.
 
 DISK IMAGES
-   Besides raw .img images, Giebler .EDE (800 KB) and .EDA (1600 KB) disk images
+   Besides raw .img images, HxC / Gotek .HFE images and Giebler .EDE (800 KB) and
+   .EDA (1600 KB) disk images
    can go in the drive: drop them on the window, or File > Open Disk Image.
    Changes are written back in the same format. In the VST3 plug-in, click the
    drive slot to choose a file (or drop it on the panel, if the host allows).

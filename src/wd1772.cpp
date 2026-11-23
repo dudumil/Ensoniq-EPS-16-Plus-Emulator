@@ -27,9 +27,19 @@ bool Wd1772::load(const std::string &p) {
     bool ok = fread(d.data(), 1, n, f) == (size_t)n;
     fclose(f);
     if (!ok || n <= 0) return false;
-    {   // a Giebler .EDE / .EDA image: work on the raw disk, write the same format back
+    load_error.clear();
+    hfe_img.file.clear();
+    {   // a Giebler .EDE / .EDA image or an HxC .HFE image: work on the raw disk, write the same format back
         std::vector<uint8_t> raw;
-        if (ede::decode(d, raw, ede_header)) d.swap(raw); else ede_header.clear();
+        if (ede::decode(d, raw, ede_header)) d.swap(raw);
+        else {
+            ede_header.clear();
+            if (hfe::looks_like(d)) {
+                hfe::Image img;
+                if (!hfe::decode(d, raw, img, load_error)) return false;
+                d.swap(raw); hfe_img = std::move(img);
+            }
+        }
     }
     disk.swap(d); path = p; dirty = false;
     mirage_ = disk.size() == (size_t)MIRAGE_SIZE;
@@ -44,6 +54,7 @@ bool Wd1772::save() {
     if (!f) return false;
     std::vector<uint8_t> packed;
     if (!ede_header.empty()) packed = ede::encode(disk, ede_header);
+    else if (!hfe_img.file.empty()) packed = hfe::encode(disk, hfe_img);
     const std::vector<uint8_t> &out = packed.empty() ? disk : packed;
     bool ok = fwrite(out.data(), 1, out.size(), f) == out.size();
     fclose(f);

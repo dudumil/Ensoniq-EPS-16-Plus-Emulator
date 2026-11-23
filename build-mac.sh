@@ -2,7 +2,7 @@
 # Builds the EPS-16 Plus emulator for macOS (universal: Apple Silicon and Intel): the "EPS-16-Plus.app" app, the
 # "EPS16.vst3" plug-in and the "EPS16.component" Audio Unit (Logic Pro), and packages them twice:
 #   dist/EPS16-Plus-Emulator-macOS-Portable.zip    a folder to unzip anywhere
-#   dist/EPS16-Plus-Emulator-macOS-Installer.pkg   an installer (with an uninstaller)
+#   dist/EPS16-Plus-Emulator-macOS-Installer.dmg   a disk image with the installer (.pkg, with an uninstaller)
 #
 # Requires:
 #   - Apple Command Line Tools (free):          xcode-select --install
@@ -66,7 +66,7 @@ codesign --force -s - dist/eps16-cli
 # folders (with their READMEs), the READMEs and the licenses. The ROMs, OS disks and disk images are
 # never put in it.
 PKG=dist/EPS16-macOS
-rm -rf "$PKG" dist/EPS16-Plus-Emulator-macOS*.zip dist/EPS16-Plus-Emulator-macOS*.pkg
+rm -rf "$PKG" dist/EPS16-Plus-Emulator-macOS*.zip dist/EPS16-Plus-Emulator-macOS*.pkg dist/EPS16-Plus-Emulator-macOS*.dmg
 mkdir -p "$PKG/VST3" "$PKG/AU" "$PKG/licenses" "$PKG/roms" "$PKG/scsi"
 cp -R dist/EPS-16-Plus.app "$PKG/"
 cp -R dist/EPS16.vst3 "$PKG/VST3/"
@@ -85,6 +85,7 @@ echo "Portable package: dist/EPS16-Plus-Emulator-macOS-Portable.zip"
 
 echo "=== 3/3  installer ==="
 installer/mac/make-pkg.sh "$PKG" "dist/EPS16-Plus-Emulator-macOS-Installer.pkg"
+installer/mac/make-dmg.sh "dist/EPS16-Plus-Emulator-macOS-Installer.pkg" "dist/EPS16-Plus-Emulator-macOS-Installer.dmg"
 
 if [ $INSTALL = 1 ]; then
     mkdir -p ~/Library/Audio/Plug-Ins/VST3
