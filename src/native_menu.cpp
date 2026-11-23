@@ -50,7 +50,7 @@ bool NativeMenu::init(SDL_Window *w, bool kb) {
     if (!h) return false;
     HMENU bar = CreateMenu(), file = CreatePopupMenu(), view = CreatePopupMenu();
     AppendMenuW(file, MF_STRING, OPEN_DISK, L"&Open Disk Image...\tdrag && drop");
-    AppendMenuW(file, MF_STRING, EJECT_DISK, L"&Eject Disk\tCtrl+E");
+    AppendMenuW(file, MF_STRING, EJECT_DISK, L"&Eject Disk\tCtrl+Shift+E");
     AppendMenuW(file, MF_STRING, SAVE_DISK, L"&Save Disk Changes\tCtrl+S");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, RECORD_WAV, L"Record Song to &WAV...\tCtrl+W");

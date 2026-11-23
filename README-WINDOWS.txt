@@ -48,7 +48,8 @@ SEQUENCER
       display shows e.g. "CLASSIC PAD VOLUME=99". With no track selected,
       RECORD does nothing.
    2. SEQ, then RECORD and PLAY: on screen RECORD latches with one click
-      (click again to release it); on the PC keyboard, Space = PLAY.
+      (click again to release it); on the PC keyboard, R = RECORD, Space = PLAY,
+      Ctrl+Space = STOP.
       The EPS creates SEQUENCE 01 and records (REC blinks until you play the
       first note).
    3. STOP asks "KEEP TRACK?": ENTER/YES keeps it. PLAY plays the sequence.
@@ -62,7 +63,7 @@ SAMPLING
    lit), ENTER again stops; then the EPS asks for the root key (play a MIDI note).
 
 WINDOW MENUS
-   File: Open Disk Image (choose an .img), Eject Disk (Ctrl+E), Save Disk
+   File: Open Disk Image (choose an .img), Eject Disk (Ctrl+Shift+E), Save Disk
          Changes (Ctrl+S), Reset (Ctrl+R), Exit.
    View: Show Keyboard (F9) shows/hides the on-screen keyboard; Options
          (Ctrl+O) opens the audio and MIDI options.
@@ -94,7 +95,7 @@ FLOPPY DISKS
    Drag an .img file onto the window (= inserting the disk).
    Single instruments (.efe): drag one or several onto the window; they are put
    on a temporary disk that goes into the drive. Then LOAD as usual.
-   Ctrl+E ejects, Ctrl+S saves the changes to the image (also on eject/exit).
+   Ctrl+Shift+E ejects, Ctrl+S saves the changes to the image (also on eject/exit).
 
 SCSI
    Put images in the "scsi" folder (HD0.img = disk on ID 0, CD5.iso = CD on
@@ -184,12 +185,16 @@ or the on-screen keyboard)
    1-8 (and F1-F8) = instrument buttons 1-8
    numeric keypad = page buttons as printed: 1 Env 1, 2 Env 2, 3 Env 3,
      4 Pitch, 5 Filter, 6 Amp, 7 LFO, 8 Wave, 9 Layer, 0 Track
-   R = RECORD (hold it and press Space to record),  Space = PLAY
+   L = LOAD,  E = EDIT,  C = CMD
+   G = INST,  H = SEQ/SONG,  Ctrl+J = SYSTEM/MIDI,  K = EFFECTS
+   Ctrl+E = EFFECT (SELECT / BYPASS)
+   R = RECORD (hold it and press Space to record),  Space = PLAY,
+   Ctrl+Space (or Shift+Space) = STOP/CONT
    arrows = panel arrows,  Enter = YES/ENTER,  Esc/Backspace = NO/CANCEL
    up + down together = the value jumps to the middle of the range (0 in
      -99..+99, 50 in 0..99), as on the hardware. With the mouse: right-click
      one of the arrows.
-   F11/F12 = Patch Select left/right (you can press both)
+   Z / X (or F11 / F12) = Patch Select left/right (you can press both)
    F9 = hide/show the on-screen keyboard (View > Show Keyboard)
    Ctrl+F effects (ESP) on/off,  Ctrl+I input on/off,  Ctrl+R reset
    With the mouse: click the buttons and keys (lower = louder), drag Volume,

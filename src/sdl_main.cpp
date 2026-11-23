@@ -1250,8 +1250,16 @@ int main(int argc, char **argv) {
         case SDLK_KP_1: return 13; case SDLK_KP_2: return 18; case SDLK_KP_3: return 19; case SDLK_KP_4: return 24;
         case SDLK_KP_5: return 25; case SDLK_KP_6: return 30; case SDLK_KP_7: return 31; case SDLK_KP_8: return 36;
         case SDLK_KP_9: return 37; case SDLK_KP_0: return 12;
-        case SDLK_SPACE: return 29;   // PLAY
-        case SDLK_F11: return RackUI::PATCH_L; case SDLK_F12: return RackUI::PATCH_R;   // Patch Select
+        case SDLK_SPACE: return 29;   // PLAY (Ctrl+Space / Shift+Space = STOP/CONT, see below)
+        // the mode buttons
+        case SDLK_l: return 26;       // LOAD
+        case SDLK_e: return 5;        // EDIT
+        case SDLK_c: return 6;        // CMD
+        case SDLK_g: return 15;       // INST
+        case SDLK_h: return 21;       // SEQ/SONG
+        case SDLK_k: return 9;        // EFFECTS
+        case SDLK_z: case SDLK_F11: return RackUI::PATCH_L;   // Patch Select left / right
+        case SDLK_x: case SDLK_F12: return RackUI::PATCH_R;
         }
         return -1;
     };
@@ -1444,10 +1452,22 @@ int main(int argc, char **argv) {
                     int sc = e.key.keysym.scancode & 511;
                     if (down && kc == SDLK_F10) { want_options = true; break; }
                     if (down && kc == SDLK_F9) { toggle_keyboard(); break; }
+                    if (!down) {                 // a released key lets go of the button it pressed
+                        if (held_kbd_button[sc] >= 0) { btn(held_kbd_button[sc], false); held_kbd_button[sc] = -1; }
+                        break;
+                    }
+                    {   // Ctrl+Space (or Shift+Space) = STOP/CONT, Ctrl+J = SYSTEM/MIDI, Ctrl+E = EFFECT (SELECT / BYPASS)
+                        const bool ctrl = (e.key.keysym.mod & KMOD_CTRL) != 0, shift = (e.key.keysym.mod & KMOD_SHIFT) != 0;
+                        int cb = -1;
+                        if (kc == SDLK_SPACE && (ctrl || shift)) cb = 23;
+                        else if (ctrl && !shift && kc == SDLK_j) cb = 27;
+                        else if (ctrl && !shift && kc == SDLK_e) cb = 7;
+                        if (cb >= 0) { held_kbd_button[sc] = cb; btn(cb, true); break; }
+                    }
                     if (down && (e.key.keysym.mod & KMOD_CTRL)) {
                         if (kc == SDLK_o) want_options = true;
                         if (kc == SDLK_w) want_record = true;
-                        if (kc == SDLK_e) { save_disk(); m.eject_disk(); status = "Disk ejected"; status_t = SDL_GetTicks(); }
+                        if (kc == SDLK_e) { save_disk(); m.eject_disk(); status = "Disk ejected"; status_t = SDL_GetTicks(); }   // (Ctrl+Shift+E)
                         if (kc == SDLK_s) save_disk();
                         if (kc == SDLK_f) { m.fx_enabled = !m.fx_enabled; status = m.fx_enabled ? "Effects on" : "Effects off (dry sound)"; status_t = SDL_GetTicks(); }
                         if (kc == SDLK_r) { m.reset(); status = "Reset"; status_t = SDL_GetTicks(); }
@@ -1464,11 +1484,7 @@ int main(int argc, char **argv) {
                         break;
                     }
                     int b = shortcut(kc);
-                    if (b >= 0) {
-                        if (down) { held_kbd_button[sc] = b; btn(b, true); }
-                        else if (held_kbd_button[sc] >= 0 && held_kbd_button[sc] < 64) { btn(held_kbd_button[sc], false); held_kbd_button[sc] = -1; }
-                        break;
-                    }
+                    if (b >= 0) { held_kbd_button[sc] = b; btn(b, true); break; }
                     break;
                 }
                 }
