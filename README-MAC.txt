@@ -93,7 +93,6 @@ If macOS says the app "cannot be opened": right-click it > Open.
 MENUS (Mac menu bar)
    File: Open Disk Image (Cmd+O), Eject Disk (Cmd+E), Save Disk Changes (Cmd+S),
          Reset (Cmd+R).
-   View: Keyboard Model (Shift+Cmd+K: the EPS-16 Plus keyboard instead of the
-         rack), Show Keyboard (Cmd+K) and Options (Cmd+,).
+   View: Show Keyboard (Cmd+K) and Options (Cmd+,).
 
 The EPS-16 Plus ROM and operating system are not included.

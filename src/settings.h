@@ -20,7 +20,6 @@ struct Settings {
     // window
     bool dac_tda = true;               // outputs through the TDA1541A converters (else a perfect converter)
     bool show_keyboard = true;         // strip with the wheels, Patch Select and the keyboard
-    bool skin_keyboard = false;        // the window shows the keyboard model (EPS-16 Plus keyboard) instead of the rack
     // SCSI drives: folder with ZuluSCSI-style images (HD0.img, CD5.iso ...); "" = the "scsi" folder
     // next to the program
     std::string scsi_dir;

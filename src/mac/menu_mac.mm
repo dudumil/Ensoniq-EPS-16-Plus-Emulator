@@ -5,7 +5,7 @@
 #include <string>
 
 static Uint32 g_event = 0;
-static NSMenuItem *g_kb_item = nil, *g_skin_item = nil;
+static NSMenuItem *g_kb_item = nil;
 
 @interface EmuMenuTarget : NSObject
 - (void)openDisk:(id)sender;
@@ -15,7 +15,6 @@ static NSMenuItem *g_kb_item = nil, *g_skin_item = nil;
 - (void)toggleKeyboard:(id)sender;
 - (void)showOptions:(id)sender;
 - (void)recordWav:(id)sender;
-- (void)toggleSkin:(id)sender;
 @end
 
 static void push_cmd(int c) {
@@ -32,7 +31,6 @@ static void push_cmd(int c) {
 - (void)toggleKeyboard:(id)sender { push_cmd(6); }
 - (void)showOptions:(id)sender { push_cmd(7); }
 - (void)recordWav:(id)sender { push_cmd(8); }
-- (void)toggleSkin:(id)sender { push_cmd(9); }
 @end
 
 static EmuMenuTarget *g_target = nil;
@@ -44,7 +42,7 @@ static NSMenuItem *add_item(NSMenu *m, NSString *title, SEL sel, NSString *key) 
     return it;
 }
 
-bool mac_menu_init(Uint32 event_type, bool kb, bool skin) {
+bool mac_menu_init(Uint32 event_type, bool kb) {
     @autoreleasepool {
         g_event = event_type;
         NSMenu *bar = [NSApp mainMenu];
@@ -68,9 +66,7 @@ bool mac_menu_init(Uint32 event_type, bool kb, bool skin) {
         [bar insertItem:fileItem atIndex:at++];
 
         NSMenu *view = [[NSMenu alloc] initWithTitle:@"View"];
-        g_skin_item = add_item(view, @"Keyboard Model (EPS-16 Plus keyboard)", @selector(toggleSkin:), @"K");   // shift-cmd-K
-        [g_skin_item setState:skin ? NSControlStateValueOn : NSControlStateValueOff];
-        g_kb_item = add_item(view, @"Show Keyboard (rack)", @selector(toggleKeyboard:), @"k");
+        g_kb_item = add_item(view, @"Show Keyboard", @selector(toggleKeyboard:), @"k");
         [g_kb_item setState:kb ? NSControlStateValueOn : NSControlStateValueOff];
         [view addItem:[NSMenuItem separatorItem]];
         add_item(view, @"Options…", @selector(showOptions:), @",");
@@ -83,10 +79,6 @@ bool mac_menu_init(Uint32 event_type, bool kb, bool skin) {
 
 void mac_menu_set_keyboard(bool shown) {
     if (g_kb_item) [g_kb_item setState:shown ? NSControlStateValueOn : NSControlStateValueOff];
-}
-
-void mac_menu_set_skin(bool kbd) {
-    if (g_skin_item) [g_skin_item setState:kbd ? NSControlStateValueOn : NSControlStateValueOff];
 }
 
 std::string mac_open_disk_dialog() {

@@ -110,8 +110,7 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
 | Arrows | panel arrows |
 | Enter / Esc | YES•ENTER / NO•CANCEL |
 | F11 / F12 | left / right Patch Select |
-| F9 | show/hide the on-screen keyboard (rack) |
-| Ctrl+K | keyboard model / rack (View > Keyboard Model) |
+| F9 | show/hide the on-screen keyboard |
 | Ctrl+E / Ctrl+S / Ctrl+R | eject / save the floppy / reset |
 | Ctrl+F / Ctrl+I | effects on/off / audio input on/off |
 
@@ -196,10 +195,10 @@ Technical notes (emulated hardware, memory map, code layout), in Portuguese:
 - This program is free software under the **GNU GPL v3** (`LICENSE`).
 - **Musashi** 68000 core by Karl Stenerud; **ES5505/ES5510** algorithms derived from MAME
   (BSD-3-Clause); **RtMidi/RtAudio** by Gary P. Scavone; **Steinberg ASIO SDK** (GPLv3);
-  **SDL2** (zlib); **VST3 SDK** (MIT) and **VSTGUI** (BSD-3-Clause) by Steinberg; panel, keyboard
-  and options page lettering rendered from **GNU FreeFont** FreeSans (GPLv3 with the font
-  exception); the 8x8 bitmap font by Daniel Hepper (public domain). The licence texts are in
-  `LICENSES/` (and next to Musashi, RtMidi and RtAudio in their folders).
+  **SDL2** (zlib); **VST3 SDK** (MIT) and **VSTGUI** (BSD-3-Clause) by Steinberg; panel and
+  options page lettering rendered from **GNU FreeFont** FreeSans (GPLv3 with the font exception);
+  the 8x8 bitmap font by Daniel Hepper (public domain). The licence texts are in `LICENSES/` (and
+  next to Musashi, RtMidi and RtAudio in their folders).
 - VST and ASIO are trademarks of Steinberg Media Technologies GmbH.
 - Ensoniq and EPS-16 Plus are trademarks of their owners. This project is not affiliated with them;
   the ROM and OS are not included.

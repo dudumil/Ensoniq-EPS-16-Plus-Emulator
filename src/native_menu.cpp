@@ -44,7 +44,7 @@ void NativeMenu::set_aspect(int w, int h) {
     if (hw && !g_prev_proc) g_prev_proc = (WNDPROC)SetWindowLongPtrW(hw, GWLP_WNDPROC, (LONG_PTR)aspect_proc);
 }
 
-bool NativeMenu::init(SDL_Window *w, bool kb, bool skin) {
+bool NativeMenu::init(SDL_Window *w, bool kb) {
     win = w;
     HWND h = hwnd_of(w);
     if (!h) return false;
@@ -58,8 +58,7 @@ bool NativeMenu::init(SDL_Window *w, bool kb, bool skin) {
     AppendMenuW(file, MF_STRING, RESET, L"&Reset\tCtrl+R");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, EXIT, L"E&xit\tAlt+F4");
-    AppendMenuW(view, MF_STRING | (skin ? MF_CHECKED : 0), TOGGLE_SKIN, L"Keyboard &Model (EPS-16 Plus keyboard)\tCtrl+K");
-    AppendMenuW(view, MF_STRING | (kb ? MF_CHECKED : 0), TOGGLE_KEYBOARD, L"Show &Keyboard (rack)\tF9");
+    AppendMenuW(view, MF_STRING | (kb ? MF_CHECKED : 0), TOGGLE_KEYBOARD, L"Show &Keyboard\tF9");
     AppendMenuW(view, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(view, MF_STRING, OPTIONS, L"&Options...\tCtrl+O");
     AppendMenuW(bar, MF_POPUP, (UINT_PTR)file, L"&File");
@@ -77,14 +76,11 @@ NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
     const auto &m = e.syswm.msg->msg.win;
     if (m.msg != WM_COMMAND || HIWORD(m.wParam) != 0) return NONE;
     int id = LOWORD(m.wParam);
-    return id >= OPEN_DISK && id <= TOGGLE_SKIN ? (Cmd)id : NONE;
+    return id >= OPEN_DISK && id <= RECORD_WAV ? (Cmd)id : NONE;
 }
 
 void NativeMenu::set_keyboard(bool shown) {
     if (ok) CheckMenuItem((HMENU)menu, TOGGLE_KEYBOARD, MF_BYCOMMAND | (shown ? MF_CHECKED : MF_UNCHECKED));
-}
-void NativeMenu::set_skin(bool kbd) {
-    if (ok) CheckMenuItem((HMENU)menu, TOGGLE_SKIN, MF_BYCOMMAND | (kbd ? MF_CHECKED : MF_UNCHECKED));
 }
 
 std::string NativeMenu::open_disk_dialog() {
@@ -121,19 +117,18 @@ std::string NativeMenu::choose_folder_dialog(const std::string &title) {
 
 #elif defined(__APPLE__)
 // implemented in mac/menu_mac.mm (pushes SDL user events)
-extern bool mac_menu_init(Uint32 event_type, bool kb, bool skin);
+extern bool mac_menu_init(Uint32 event_type, bool kb);
 extern void mac_menu_set_keyboard(bool shown);
-extern void mac_menu_set_skin(bool kbd);
 extern std::string mac_open_disk_dialog();
 extern std::string mac_choose_folder_dialog(const std::string &title);
 extern void mac_set_aspect(SDL_Window *w, int aw, int ah);
 static Uint32 g_menu_event = 0;
 
-bool NativeMenu::init(SDL_Window *w, bool kb, bool skin) {
+bool NativeMenu::init(SDL_Window *w, bool kb) {
     win = w;
     g_menu_event = SDL_RegisterEvents(1);
     if (g_menu_event == (Uint32)-1) return false;
-    ok = mac_menu_init(g_menu_event, kb, skin);
+    ok = mac_menu_init(g_menu_event, kb);
     return ok;
 }
 NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
@@ -141,7 +136,6 @@ NativeMenu::Cmd NativeMenu::command(const SDL_Event &e) const {
     return (Cmd)e.user.code;
 }
 void NativeMenu::set_keyboard(bool shown) { if (ok) mac_menu_set_keyboard(shown); }
-void NativeMenu::set_skin(bool kbd) { if (ok) mac_menu_set_skin(kbd); }
 void NativeMenu::set_aspect(int w, int h) { if (win) mac_set_aspect(win, w, h); }
 std::string NativeMenu::open_disk_dialog() { return mac_open_disk_dialog(); }
 std::string NativeMenu::choose_folder_dialog(const std::string &t) { return mac_choose_folder_dialog(t); }
@@ -149,10 +143,9 @@ std::string NativeMenu::choose_folder_dialog(const std::string &t) { return mac_
 #else
 #include <cstdio>
 #include <sys/wait.h>
-bool NativeMenu::init(SDL_Window *w, bool, bool) { win = w; return false; }
+bool NativeMenu::init(SDL_Window *w, bool) { win = w; return false; }
 NativeMenu::Cmd NativeMenu::command(const SDL_Event &) const { return NONE; }
 void NativeMenu::set_keyboard(bool) {}
-void NativeMenu::set_skin(bool) {}
 void NativeMenu::set_aspect(int, int) {}   // the program corrects the size after a resize
 std::string NativeMenu::open_disk_dialog() { return ""; }
 std::string NativeMenu::choose_folder_dialog(const std::string &title) {

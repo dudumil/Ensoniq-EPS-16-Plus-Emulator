@@ -104,7 +104,6 @@ Ver `README-WINDOWS.txt` para o guia completo. Resumo:
 | Enter / Esc | YES•ENTER / NO•CANCEL |
 | F11 / F12 | Patch Select esquerdo / direito |
 | F9, Ctrl+O | teclado do ecrã, opções |
-| Ctrl+K | modelo de teclado (EPS-16 Plus teclado, com OEX-6) / rack |
 | Ctrl+E / Ctrl+S / Ctrl+R | ejetar / gravar disquete / reset |
 | Ctrl+F, Ctrl+I | efeitos on/off, entrada de áudio on/off |
 

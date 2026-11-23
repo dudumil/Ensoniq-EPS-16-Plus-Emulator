@@ -4,7 +4,6 @@
 #include "eps16.h"
 #include "vfd.h"
 #include "rack_ui.h"
-#include "kbd_ui.h"
 #include "efe_disk.h"
 #include "ui_text.h"
 #include "native_menu.h"
@@ -318,9 +317,6 @@ int main(int argc, char **argv) {
     bool audio_in = false, list_audio = false; std::string audio_driver;
     std::string input_wav_path; double input_wav_at = -1;
     double shot_at = -1, quit_at = -1; std::string shot_path;   // testing aids
-    std::string force_skin;
-    struct TestClick { double t; int x, y, dy; double hold; int stage; };   // --click T:x:y[:dy[:hold]]: mouse down, drag by dy, up
-    std::vector<TestClick> test_clicks;
     bool open_opts_at_start = false;
     std::vector<std::pair<double,int>> auto_buttons;
     std::string record_dir;
@@ -349,8 +345,6 @@ int main(int argc, char **argv) {
         else if (a == "--input-wav") input_wav_path = next();
         else if (a == "--input-wav-at") input_wav_at = atof(next().c_str());
         else if (a == "--scale") scale = atof(next().c_str());
-        else if (a == "--skin") force_skin = next();         // keyboard | rack (this run only)
-        else if (a == "--click") { TestClick c{ 0, 0, 0, 0, 0.3, 0 }; if (sscanf(next().c_str(), "%lf:%d:%d:%d:%lf", &c.t, &c.x, &c.y, &c.dy, &c.hold) >= 3) test_clicks.push_back(c); }
         else if (a == "--screenshot") { shot_at = atof(next().c_str()); shot_path = next(); }
         else if (a == "--quit-after") quit_at = atof(next().c_str());
         else if (a == "--insert") { std::string v = next(); size_t c = v.find(':'); if (c != std::string::npos) timed_inserts.push_back({ atof(v.substr(0, c).c_str()), v.substr(c + 1) }); }   // test: T:image
@@ -524,7 +518,6 @@ int main(int argc, char **argv) {
         cfg.load(dir + "eps16.cfg");
         cfg.path = dir + "eps16.cfg";
     }
-    bool kbd_skin = force_skin.empty() ? cfg.skin_keyboard : force_skin == "keyboard";
     // record the program's folder: the VST3 plug-in looks for the ROMs, the OS disk and the
     // "scsi" folder there too, so that both use the same files. When the ROMs came from a roms
     // folder elsewhere (macOS: next to the .app) the folder that holds it is recorded instead.
@@ -624,13 +617,8 @@ int main(int argc, char **argv) {
     SDL_SetHint(SDL_HINT_WINDOWS_INTRESOURCE_ICON, "1");          // the .exe icon (all sizes) for the window
     SDL_SetHint(SDL_HINT_WINDOWS_INTRESOURCE_ICON_SMALL, "1");
 #endif
-    // the keyboard model skin has its own proportions (the rack: with or without the keyboard strip)
-    KbdUI kbd((float)W);
-    const int KBD_H = (int)std::lround(kbd.height());
-    H_cur = kbd_skin ? KBD_H : cfg.show_keyboard ? H : STRIP_Y + STATUS_H;
-    status_y = H_cur == H ? STATUS_Y : STRIP_Y;
     SDL_Window *win = SDL_CreateWindow("Ensoniq EPS-16 Plus", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                       (int)(W * scale), (int)(H_cur * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+                                       (int)(W * scale), (int)(H * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 #ifndef _WIN32
     if (SDL_Surface *ic = SDL_CreateRGBSurfaceWithFormatFrom((void *)APP_ICON64, 64, 64, 32, 64 * 4, SDL_PIXELFORMAT_ABGR8888)) {
         SDL_SetWindowIcon(win, ic); SDL_FreeSurface(ic);
@@ -638,12 +626,11 @@ int main(int argc, char **argv) {
 #endif
     R = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!R) R = SDL_CreateRenderer(win, -1, 0);
-    SDL_RenderSetLogicalSize(R, W, H_cur);
+    SDL_RenderSetLogicalSize(R, W, H);
     VfdRenderer vfd;
     if (!vfd.init(R)) { fprintf(stderr, "VFD textures: %s\n", SDL_GetError()); return 1; }
     RackUI rack((float)W);
     if (!rack.init(R)) { fprintf(stderr, "panel textures: %s\n", SDL_GetError()); return 1; }
-    if (!kbd.init(R)) { fprintf(stderr, "keyboard skin textures: %s\n", SDL_GetError()); return 1; }
     UiText ui;
     if (!ui.init(R)) { fprintf(stderr, "font textures: %s\n", SDL_GetError()); return 1; }
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
@@ -1125,17 +1112,17 @@ int main(int argc, char **argv) {
     // open, they need the room)
     auto apply_layout = [&]() {
         bool full = show_kb || opts_open;
-        int nh = kbd_skin ? (opts_open ? H : KBD_H) : full ? H : STRIP_Y + STATUS_H;   // (the options need the room)
+        int nh = full ? H : STRIP_Y + STATUS_H;
         if (nh == H_cur) return;
         int ww, wh; SDL_GetWindowSize(win, &ww, &wh);
         bool resizable = !(SDL_GetWindowFlags(win) & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP));
         float sc = (float)wh / H_cur;
-        H_cur = nh; status_y = nh == H ? STATUS_Y : STRIP_Y;
+        H_cur = nh; status_y = full ? STATUS_Y : STRIP_Y;
         SDL_RenderSetLogicalSize(R, W, H_cur);
         nmenu.set_aspect(W, H_cur);
         if (resizable) SDL_SetWindowSize(win, ww, (int)(H_cur * sc + 0.5f));
     };
-    nmenu.init(win, show_kb, kbd_skin);
+    nmenu.init(win, show_kb);
     nmenu.set_aspect(W, H_cur);           // resizing keeps the panel's proportions
     auto toggle_keyboard = [&]() {
         show_kb = !show_kb; cfg.show_keyboard = show_kb; cfg.save();
@@ -1152,18 +1139,6 @@ int main(int argc, char **argv) {
 
     // ---------------------------------------------------------------- UI state
     auto controls = make_controls(rack);
-    // the sliders and wheels are where the skin draws them
-    auto place_controls = [&]() {
-        const auto rk = make_controls(rack);
-        for (size_t i = 0; i < controls.size(); i++) {
-            Ctl &c = controls[i];
-            if (!kbd_skin) { c.x = rk[i].x; c.y = rk[i].y; c.w = rk[i].w; c.h = rk[i].h; continue; }
-            RackUI::Slider sl = c.ch == Eps16::AN_PITCH ? kbd.pitch_wheel() : c.ch == Eps16::AN_MOD ? kbd.mod_wheel()
-                              : c.ch == Eps16::AN_DATA ? kbd.data_slider() : kbd.volume_slider();
-            c.x = sl.x; c.y = sl.y; c.w = sl.w; c.h = sl.h;
-        }
-    };
-    place_controls();
     uint32_t power_down_t = 0; bool power_held = false;
     bool rec_latched = false;       // RECORD works as a toggle in the window
     // Patch Select buttons (on the keyboard model they sit left of the wheels; panel indices 0/1)
@@ -1205,23 +1180,6 @@ int main(int argc, char **argv) {
             return;
         }
         m.panel.button(idx, down);
-    };
-    // View > Keyboard Model (Ctrl+K): the keyboard model or the rack
-    auto toggle_skin = [&]() {
-        if (held_key >= 0) { press_key(held_key, false, 64); held_key = -1; }
-        kbd_skin = !kbd_skin; cfg.skin_keyboard = kbd_skin; cfg.save();
-        nmenu.set_skin(kbd_skin);
-        place_controls();
-        apply_layout();
-    };
-    auto skin_button_at = [&](int x, int y) { return kbd_skin ? kbd.button_at(x, y) : rack.button_at(x, y); };
-    auto skin_area_at = [&](int x, int y) { return kbd_skin ? kbd.area_at(x, y) : rack.area_at(x, y); };
-    auto skin_key_at = [&](int x, int y, int *vel) -> int {
-        if (kbd_skin) return kbd.key_at(x, y, vel);
-        if (H_cur != H) return -1;                                   // keyboard strip hidden
-        int k = key_at(x, y);
-        if (k >= 0 && vel) { SDL_Rect r = key_rect(k); *vel = std::min(127, 30 + 97 * (y - r.y) / (r.h > 0 ? r.h : 1)); }   // lower on the key = louder
-        return k;
     };
     // a disk image: SCSI if it is named/sized like one (HD0.img, CD5.iso, > 2 MB), else the floppy drive
     // Ensoniq single files (.efe/.efa, Giebler format) dropped together go on one temporary
@@ -1280,7 +1238,7 @@ int main(int argc, char **argv) {
         bool fdc_dirty, has_disk, scsi_fitted, drive_busy;
         uint32_t scsi_act = 0, scsi_wr = 0;
         std::string scsi_sum, disk_path;
-        bool want_options = false, want_apply = false, want_kb_toggle = false, want_open = false, want_record = false, want_skin = false;
+        bool want_options = false, want_apply = false, want_kb_toggle = false, want_open = false, want_record = false;
         {
             // collect the events first: on Windows SDL_PollEvent can block while the window is
             // dragged, and the machine must not stay locked meanwhile
@@ -1300,7 +1258,6 @@ int main(int argc, char **argv) {
                     case NativeMenu::RESET: save_disk(); m.reset(); status = "Reset"; status_t = SDL_GetTicks(); break;
                     case NativeMenu::EXIT: quit = true; break;
                     case NativeMenu::TOGGLE_KEYBOARD: want_kb_toggle = true; break;
-                    case NativeMenu::TOGGLE_SKIN: want_skin = true; break;
                     case NativeMenu::OPTIONS: if (opts_open) opts_open = false; else want_options = true; break;
                     case NativeMenu::RECORD_WAV: want_record = true; break;
                     default: break;
@@ -1386,7 +1343,7 @@ int main(int argc, char **argv) {
                 case SDL_MOUSEBUTTONDOWN: {
                     int x = e.button.x, y = e.button.y;
                     {
-                        int bi = skin_button_at(x, y);
+                        int bi = rack.button_at(x, y);
                         if (bi == 3) {               // RECORD latches: one click holds it down, the next releases it
                             rec_latched = !rec_latched; btn(3, rec_latched); break;
                         }
@@ -1396,7 +1353,7 @@ int main(int argc, char **argv) {
                             arrows_both = true; btn(10, true); btn(11, true); break;
                         }
                         if (bi >= 0) { held_button = bi; btn(bi, true); break; }
-                        RackUI::Area a = skin_area_at(x, y);
+                        RackUI::Area a = rack.area_at(x, y);
                         if (a == RackUI::POWER) { power_held = true; power_down_t = SDL_GetTicks(); break; }
                         if (a == RackUI::EJECT) {
                             if (m.fdc.has_disk()) { save_disk(); m.eject_disk(); status = "Disk ejected"; }
@@ -1411,14 +1368,18 @@ int main(int argc, char **argv) {
                     }
                     for (size_t ci = 0; ci < controls.size() && held_button < 0; ci++) {
                         Ctl &c = controls[ci];
-                        if (!c.on_rack && !kbd_skin && H_cur != H) continue;          // keyboard strip hidden
+                        if (!c.on_rack && H_cur != H) continue;          // keyboard strip hidden
                         if (ctl_hit(c, x, y)) {
                             held_ctl = (int)ci; ctl_from_mouse(c, x, y); if (c.on_rack) m.analog[c.ch] = ctl_raw(c); wheel_midi(c);
                         }
                     }
-                    if (held_button < 0 && held_ctl < 0) {
-                        int v = 100, k = skin_key_at(x, y, &v);
-                        if (k >= 0) { held_key = k; press_key(k, true, v); }
+                    if (held_button < 0 && held_ctl < 0 && H_cur == H) {
+                        int k = key_at(x, y);
+                        if (k >= 0) {
+                            SDL_Rect r = key_rect(k);
+                            int v = 30 + 97 * (y - r.y) / (r.h > 0 ? r.h : 1);   // lower on the key = louder
+                            held_key = k; press_key(k, true, v > 127 ? 127 : v);
+                        }
                     }
                     break;
                 }
@@ -1441,7 +1402,7 @@ int main(int argc, char **argv) {
                 case SDL_MOUSEMOTION:
                     if (held_ctl >= 0) { Ctl &c = controls[held_ctl]; ctl_from_mouse(c, e.motion.x, e.motion.y); if (c.on_rack) m.analog[c.ch] = ctl_raw(c); wheel_midi(c); }
                     if (held_key >= 0 && (e.motion.state & SDL_BUTTON_LMASK)) {
-                        int k = skin_key_at(e.motion.x, e.motion.y, nullptr);
+                        int k = key_at(e.motion.x, e.motion.y);
                         if (k >= 0 && k != held_key) { press_key(held_key, false, 64); held_key = k; press_key(k, true, velocity); }
                     }
                     break;
@@ -1457,7 +1418,6 @@ int main(int argc, char **argv) {
                     int sc = e.key.keysym.scancode & 511;
                     if (down && kc == SDLK_F10) { want_options = true; break; }
                     if (down && kc == SDLK_F9) { toggle_keyboard(); break; }
-                    if (down && kc == SDLK_k && (e.key.keysym.mod & KMOD_CTRL)) { want_skin = true; break; }
                     if (down && (e.key.keysym.mod & KMOD_CTRL)) {
                         if (kc == SDLK_o) want_options = true;
                         if (kc == SDLK_w) want_record = true;
@@ -1492,26 +1452,12 @@ int main(int argc, char **argv) {
             double emu_t = m.cycles() / m.cpu_clock;
             if (input_wav_at >= 0 && emu_t >= input_wav_at && !wav_in.empty()) { wav_pos = 0; wav_playing = true; input_wav_at = -1; }
             for (auto &ti : timed_inserts) if (ti.first >= 0 && emu_t >= ti.first) { ti.first = -1; open_image(ti.second); }
-            for (auto &tc : test_clicks) {             // test: mouse clicks, pushed as events (handled next frame)
-                SDL_Event ev; SDL_zero(ev);
-                if (tc.stage == 0 && emu_t >= tc.t) {
-                    ev.type = SDL_MOUSEBUTTONDOWN; ev.button.button = SDL_BUTTON_LEFT; ev.button.x = tc.x; ev.button.y = tc.y; ev.button.clicks = 1;
-                    SDL_PushEvent(&ev); tc.stage = 1;
-                } else if (tc.stage == 1 && emu_t >= tc.t + std::min(0.2, tc.hold * 0.5) && tc.dy) {
-                    ev.type = SDL_MOUSEMOTION; ev.motion.x = tc.x; ev.motion.y = tc.y + tc.dy; ev.motion.state = SDL_BUTTON_LMASK;
-                    SDL_PushEvent(&ev); tc.stage = 2;
-                } else if (tc.stage >= 1 && emu_t >= tc.t + tc.hold) {
-                    ev.type = SDL_MOUSEBUTTONUP; ev.button.button = SDL_BUTTON_LEFT; ev.button.x = tc.x; ev.button.y = tc.y + tc.dy;
-                    SDL_PushEvent(&ev); tc.stage = 3;
-                }
-            }
             for (auto &ab : auto_buttons) {
                 if (ab.first >= 0 && emu_t >= ab.first) {
                     if (ab.second == 1000) want_options = true;
                     else if (ab.second == 1003) { opt_cur = O_RATE; open_drop(opt_cur); }      // test: open a list
                     else if (ab.second == 1004) { lk.unlock(); open_drop(O_NEWMAKE); lk.lock(); }   // test: create a drive
                     else if (ab.second == 1002) want_kb_toggle = true;                       // test: keyboard strip
-                    else if (ab.second == 1005) want_skin = true;                            // test: skin
                     else if (ab.second == 1001) want_apply = true;                          // test: apply options
                     else if (ab.second >= 2000) press_key(ab.second - 2000, true, 100);   // test: key on
                     else btn(ab.second, true);
@@ -1519,7 +1465,7 @@ int main(int argc, char **argv) {
                 }
                 else if (ab.first < -0.5 && emu_t >= -ab.first + (ab.second >= 2000 ? 0.9 : 0)) {
                     if (ab.second >= 2000) press_key(ab.second - 2000, false, 64);
-                    else if (ab.second != 1000 && ab.second != 1002 && ab.second != 1005) btn(ab.second, false);
+                    else if (ab.second != 1000 && ab.second != 1002) btn(ab.second, false);
                     ab.first = -0.25;
                 }
             }
@@ -1559,7 +1505,6 @@ int main(int argc, char **argv) {
             }
         }
         if (want_kb_toggle) toggle_keyboard();
-        if (want_skin) toggle_skin();
         apply_layout();                        // the keyboard strip comes back while the options are open
         if (want_apply && opts_open) apply_options();
 
@@ -1585,21 +1530,11 @@ int main(int argc, char **argv) {
             }
             rs.disk = has_disk; rs.drive_busy = drive_busy; rs.scsi_activity = scsi_act; rs.scsi_writes = scsi_wr;
             rs.power_held = power_held;
-            if (kbd_skin) {
-                KbdState ks;
-                static_cast<RackState &>(ks) = rs;
-                ks.keys = kb_down;
-                for (auto &c : controls) {
-                    if (c.ch == Eps16::AN_PITCH) ks.pitch = (float)c.val;
-                    if (c.ch == Eps16::AN_MOD) ks.mod = (float)c.val;
-                }
-                ks.patch[0] = patch_held[0]; ks.patch[1] = patch_held[1];
-                kbd.draw(ks, vfd);
-            } else rack.draw(rs, vfd);
+            rack.draw(rs, vfd);
         }
         (void)blink_on;
 
-        if (!kbd_skin && H_cur == H) {
+        if (H_cur == H) {
             // controller strip: wheels and keyboard
             fill(0, STRIP_Y, W, STATUS_Y - STRIP_Y - 4, 0x161719);
             fill(0, STRIP_Y, W, 1, 0x2a2b2e);
@@ -1754,12 +1689,10 @@ int main(int argc, char **argv) {
         }
 
         if (shot_at == -2) {
-            int ow, oh; SDL_GetRendererOutputSize(R, &ow, &oh);          // (the window may be scaled: --scale)
-            SDL_Surface *sf = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888);
-            SDL_RenderSetLogicalSize(R, 0, 0);
-            if (SDL_RenderReadPixels(R, nullptr, SDL_PIXELFORMAT_ARGB8888, sf->pixels, sf->pitch) == 0)
+            SDL_Surface *sf = SDL_CreateRGBSurfaceWithFormat(0, W, H_cur, 32, SDL_PIXELFORMAT_ARGB8888);
+            int ow, oh; SDL_GetRendererOutputSize(R, &ow, &oh);
+            if (ow == W && oh == H_cur && SDL_RenderReadPixels(R, nullptr, SDL_PIXELFORMAT_ARGB8888, sf->pixels, sf->pitch) == 0)
                 SDL_SaveBMP(sf, shot_path.c_str());
-            SDL_RenderSetLogicalSize(R, W, H_cur);
             SDL_FreeSurface(sf);
             shot_at = -1;
         }
