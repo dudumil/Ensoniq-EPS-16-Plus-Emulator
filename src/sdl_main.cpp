@@ -1257,6 +1257,7 @@ int main(int argc, char **argv) {
         case SDLK_c: return 6;        // CMD
         case SDLK_g: return 15;       // INST
         case SDLK_h: return 21;       // SEQ/SONG
+        case SDLK_j: return 27;       // SYSTEM/MIDI
         case SDLK_k: return 9;        // EFFECTS
         case SDLK_z: case SDLK_F11: return RackUI::PATCH_L;   // Patch Select left / right
         case SDLK_x: case SDLK_F12: return RackUI::PATCH_R;
@@ -1456,11 +1457,10 @@ int main(int argc, char **argv) {
                         if (held_kbd_button[sc] >= 0) { btn(held_kbd_button[sc], false); held_kbd_button[sc] = -1; }
                         break;
                     }
-                    {   // Ctrl+Space (or Shift+Space) = STOP/CONT, Ctrl+J = SYSTEM/MIDI, Ctrl+E = EFFECT (SELECT / BYPASS)
+                    {   // Ctrl+Space (or Shift+Space) = STOP/CONT, Ctrl+E = EFFECT (SELECT / BYPASS)
                         const bool ctrl = (e.key.keysym.mod & KMOD_CTRL) != 0, shift = (e.key.keysym.mod & KMOD_SHIFT) != 0;
                         int cb = -1;
                         if (kc == SDLK_SPACE && (ctrl || shift)) cb = 23;
-                        else if (ctrl && !shift && kc == SDLK_j) cb = 27;
                         else if (ctrl && !shift && kc == SDLK_e) cb = 7;
                         if (cb >= 0) { held_kbd_button[sc] = cb; btn(cb, true); break; }
                     }
