@@ -150,6 +150,48 @@ SCSI DRIVE do EPS o deixa (não é preciso formatar). Depois File → Reset para
 | `plugin/` | plug-in VST3: `eps16_plugin.*`, `eps16_engine.*` (máquina e partilha do 68000), `eps16_editor.*` |
 | `tools/` | geradores da arte do painel, fontes, ícones; `efe2img.py` junta ficheiros EFE a uma imagem |
 
+## Versão 1.0: o que foi acrescentado (notas técnicas)
+
+### Carregamento e gravação rápidos (`fast_disk`)
+- `disk_busy()` na máquina: houve atividade da disquete ou do SCSI (e, no EPS, escritas na FB-2) no
+  último segundo do tempo da máquina, o sequenciador está parado (anunciadores PLAY / REC) e nenhum
+  botão do painel está carregado (o OS mede a auto-repetição das teclas com o relógio da máquina).
+- App: enquanto `disk_busy()`, a thread da emulação corre sem esperar pelo áudio e o som é descartado
+  (o render faz fade-out / fade-in quando o anel de áudio esvazia, sem contar underruns).
+- VST3 / AU: em cada bloco a máquina corre à frente até ~40% da duração do bloco em tempo real; as
+  saídas fazem fade-out no primeiro bloco e fade-in a seguir ao último.
+- Opção "Loading / saving" (Fast / Real speed), `fast_disk=` no ficheiro de definições.
+
+### Imagens HxC `.hfe` (`src/hfe_image.h`)
+- Revisão 1 ("HXCPICFE"), codificação IBM MFM: os setores são encontrados pelos campos de ID (sync
+  4489 x3, IDAM FE, DAM FB, CRC-CCITT) e postos numa imagem raw de 80 cilindros x 2 lados x 10 ou 20
+  setores de 512 bytes; ao gravar, as pistas são escritas de novo como pistas MFM normais, com o
+  comprimento de pista do ficheiro.
+- Aceites na drive, como disco de OS (pasta `roms`) e no VST3; um `.hfe` maior que 2 MB não vai para o
+  SCSI.
+
+### Audio Unit (macOS)
+- O wrapper AU v2 do VST3 SDK (`public.sdk/source/vst/auwrapper`) com o AudioUnitSDK da Apple (1.1.0),
+  compilado sem o gerador Xcode (`plugin/CMakeLists.txt`, alvo `<nome>_AU`); o VST3 vai dentro do
+  componente (`Contents/Resources/plugin.vst3`). Tipo `aumu`, validado com `auval` no workflow macOS.
+
+### Instaladores e pacotes (`installer/`)
+- `product.conf`: nomes, identificadores, ROMs (nomes, tamanho) e pastas de dados.
+- Windows: `installer/windows/package.sh` (pasta portátil, zip portátil, `Setup.exe` com NSIS e o zip do
+  instalador com README e licenças). O instalador pede os dois ROMs e o disco de OS (página nsDialogs;
+  em modo silencioso `/ROMLO= /ROMHI= /OS=`), copia-os para `roms`, dá permissão de escrita aos
+  utilizadores nas pastas de dados (`icacls`) e regista a desinstalação. O VST3 encontra a pasta pelo
+  `InstallLocation` da entrada de desinstalação.
+- macOS: `build-mac.sh` -> `installer/mac/make-pkg.sh` (componentes app / VST3 / AU, pré-instalação
+  com diálogos `osascript` para os ROMs e o OS, desinstalador AppleScript) e `make-dmg.sh` (o `.pkg`
+  num `.dmg`, com o ícone do instalador: `tools/make_installer_icon.py`).
+- Workflows: `windows.yml` (llvm-mingw + NSIS em Linux, depois instalação / desinstalação num runner
+  Windows) e `macos.yml` (app, VST3, AU, `auval`, instalação / desinstalação do `.pkg`).
+
+### Atalhos de teclado
+- L LOAD, E EDIT, C COMMAND, G INSTRUMENT, H SEQ/SONG, J SYSTEM/MIDI, K EFFECTS, Ctrl+E EFFECT
+  SELECT/BYPASS, R RECORD, Espaço PLAY, Ctrl+Espaço ou Shift+Espaço STOP/CONTINUE, Z / X Patch Select; ejetar passou para Ctrl+Shift+E.
+
 ## Licenças e créditos
 
 - **Musashi**, núcleo 68000, de Karl Stenerud: ver `musashi/LICENSE-Musashi.txt`.

@@ -7,8 +7,20 @@ boots the original operating system from a floppy image, on an emulated 68000 CP
 sound chip, ES5510 (ESP) effects DSP, DMA controller, floppy controller and SCSI. Nothing of the OS is
 faked, so it behaves like the real instrument.
 
-Available as an app for **Windows** and **macOS** (Apple Silicon and Intel), and as a **VST3 instrument plug-in**
-for both.
+Available as an app for **Windows** and **macOS** (Apple Silicon and Intel), as a **VST3 instrument plug-in**
+for both and as an **Audio Unit** for Logic Pro and GarageBand, with installers or as portable packages.
+
+## New in 1.0
+
+- **Installers with uninstallers** (Windows and macOS) and **portable** packages. The installers ask for
+  your ROMs and OS disk and put them where the app and the plug-ins find them.
+- **Audio Unit** for Logic Pro and GarageBand (passes Apple's `auval`).
+- **Fast loading and saving**: while a file loads or saves (floppy, SCSI, FB-2), the machine runs as
+  fast as the computer allows (booting ~1.5 s instead of ~7 s); real speed while the sequencer plays.
+- **Computer keyboard shortcuts** for every panel button (see *Using it*).
+- **FB-2 Flash Bank**, **TDA1541A** D/A converter model, **HxC / Gotek `.hfe`** disk images, blinking
+  display text, the instrument LEDs lit while booting, as on the real unit.
+- A lighter VST3 / AU editor (only what changes on the panel is redrawn) and a faster effects processor.
 
 ## What works
 
@@ -23,8 +35,11 @@ for both.
 - Import of **Ensoniq Mirage** sounds from Mirage disk images (440 KB `.img`): Command › System/MIDI ›
   LOAD MIRAGE-DSK SOUND.
 - OEX-6 Output Expander outputs (AUX 1, BUS 2, BUS 3) on separate outputs of your audio interface.
-- Patch Select buttons, Volume and Data Entry sliders, the full rack front panel and an on-screen
-  keyboard.
+- **TDA1541A** D/A converters modelled with the main board's analog section (or a perfect converter).
+- Floppy images: raw `.img`, Giebler `.ede` / `.eda` and HxC / Gotek `.hfe`.
+- **Fast loading and saving** (optional), with the sequencer always at real speed.
+- Patch Select buttons, Volume and Data Entry sliders, the full rack front panel, an on-screen
+  keyboard and computer keyboard shortcuts for every button.
 
 ## Download
 
