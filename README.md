@@ -10,18 +10,6 @@ faked, so it behaves like the real instrument.
 Available as an app for **Windows** and **macOS** (Apple Silicon and Intel), as a **VST3 instrument plug-in**
 for both and as an **Audio Unit** for Logic Pro and GarageBand, with installers or as portable packages.
 
-## New in 1.0
-
-- **Installers with uninstallers** (Windows and macOS) and **portable** packages. The installers ask for
-  your ROMs and OS disk and put them where the app and the plug-ins find them.
-- **Audio Unit** for Logic Pro and GarageBand (passes Apple's `auval`).
-- **Fast loading and saving**: while a file loads or saves (floppy, SCSI, FB-2), the machine runs as
-  fast as the computer allows (booting ~1.5 s instead of ~7 s); real speed while the sequencer plays.
-- **Computer keyboard shortcuts** for every panel button (see *Using it*).
-- **FB-2 Flash Bank**, **TDA1541A** D/A converter model, **HxC / Gotek `.hfe`** disk images, blinking
-  display text, the instrument LEDs lit while booting, as on the real unit.
-- A lighter VST3 / AU editor (only what changes on the panel is redrawn) and a faster effects processor.
-
 ## What works
 
 - Boot from the OS floppy (tested with OS 1.30), loading and saving instruments, banks and sequences.
